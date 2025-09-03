@@ -1,0 +1,106 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
+import clsx from "clsx"
+import { CampaignModal } from "@/components/dashboard/CampaignModal"
+
+export interface NavOption {
+  id: string
+  value: string // route path
+  label: string
+}
+
+const NAV_OPTIONS: NavOption[] = [
+  { id: "nav-qualified", value: "/dashboard/qualified-accounts", label: "Qualified Accounts" },
+  { id: "nav-analytics", value: "/dashboard/analytics", label: "Analytics Overview" },
+  { id: "nav-segments", value: "/dashboard/segments", label: "Segments" },
+  { id: "nav-insights", value: "/dashboard/pipeline-insights", label: "Pipeline Insights" },
+  { id: "nav-trainer", value: "/dashboard/icp-trainer", label: "ICP Trainer" },
+  { id: "nav-monitor", value: "/dashboard/live-monitor", label: "Live Monitor" },
+]
+
+export default function AnimatedRadioNav() {
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  // derive selected from current route
+  const initial = useMemo(() => {
+    const match = NAV_OPTIONS.find(o => location.pathname?.startsWith(o.value))
+    return match?.value ?? NAV_OPTIONS[0].value
+  }, [location.pathname])
+
+  const [selectedValue, setSelectedValue] = useState(initial)
+
+  useEffect(() => {
+    setSelectedValue(initial)
+  }, [initial])
+
+  const handleChange = (value: string) => {
+    setSelectedValue(value)
+    navigate(value)
+  }
+
+  const getGliderTransform = () => {
+    const index = NAV_OPTIONS.findIndex((option) => option.value === selectedValue)
+    return `translateY(${index * 100}%)`
+  }
+
+  return (
+    <nav aria-label="ICP Agent Navigation" className="w-full">
+      <div className="relative flex flex-col pl-3">
+        {NAV_OPTIONS.map((option) => {
+          const active = selectedValue === option.value
+          return (
+            <div key={option.id} className="relative z-20 py-1">
+              <input
+                id={option.id}
+                name="icp-nav"
+                type="radio"
+                value={option.value}
+                checked={active}
+                onChange={(e) => handleChange(e.target.value)}
+                className="absolute inset-0 m-0 opacity-0 cursor-pointer z-30 appearance-none"
+                aria-label={option.label}
+              />
+              <label
+                htmlFor={option.id}
+                className={clsx(
+                  "cursor-pointer text-sm py-2 px-1 block transition-all duration-300 ease-in-out select-none",
+                  active
+                    ? "text-emerald-300 font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {option.label}
+              </label>
+            </div>
+          )
+        })}
+
+        {/* vertical rail + animated glider */}
+        <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-border to-transparent">
+          <div
+            className="relative h-[calc(100%/6)] w-full bg-gradient-to-b from-transparent via-emerald-500 to-transparent transition-transform duration-500 ease-[cubic-bezier(0.37,1.95,0.66,0.56)]"
+            style={{ transform: getGliderTransform() }}
+          >
+            <div className="absolute top-1/2 -translate-y-1/2 h-3/5 w-[300%] bg-emerald-500 blur-[10px]" />
+            <div className="absolute left-0 h-full w-36 bg-gradient-to-r from-emerald-500/10 to-transparent" />
+          </div>
+        </div>
+      </div>
+
+      {/* Campaign Section */}
+      <div className="mt-6 pt-6 border-t border-border/50">
+        <div className="px-3">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            Actions
+          </h3>
+          <div className="flex justify-center">
+            <CampaignModal />
+          </div>
+        </div>
+      </div>
+    </nav>
+  )
+}

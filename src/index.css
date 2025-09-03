@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 142 76% 36%;
+    --primary-foreground: 0 0% 98%;
+    --primary-glow: 142 69% 58%;
+
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Brand Design System - Dark Mode */
+    --background: 220 36% 4%; /* #0B0D10 */
+    --foreground: 200 18% 91%; /* #E6ECEF */
+
+    --card: 220 30% 7%; /* #0F1216 */
+    --card-foreground: 200 18% 91%; /* #E6ECEF */
+
+    --popover: 220 30% 7%; /* #0F1216 */
+    --popover-foreground: 200 18% 91%; /* #E6ECEF */
+
+    /* Brand Green #3AF585 = 142 84% 60% */
+    --primary: 142 84% 60%; /* Brand Green #3AF585 */
+    --primary-foreground: 0 0% 0%; /* Black text on green */
+    --primary-glow: 142 76% 70%; /* Lighter green for glow */
+
+    --secondary: 220 20% 20%; /* Neutral gray */
+    --secondary-foreground: 200 18% 91%;
+
+    --muted: 220 27% 8%; /* #161B22 */
+    --muted-foreground: 206 14% 63%; /* #97A3AE */
+
+    --accent: 142 84% 60%; /* Same as primary - brand green */
+    --accent-foreground: 0 0% 0%; /* Black text on green */
+
+    --destructive: 0 84% 60%; /* #EF4444 */
+    --destructive-foreground: 210 20% 98%;
+
+    --border: 220 22% 17%; /* #1C222B */
+    --input: 220 27% 8%;
+    --ring: 142 84% 60%; /* Brand green focus ring */
+    
+    --sidebar-background: 220 36% 4%; /* Same as background */
+    --sidebar-foreground: 200 18% 91%;
+    --sidebar-primary: 142 84% 60%; /* Brand green */
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 220 27% 8%;
+    --sidebar-accent-foreground: 200 18% 91%;
+    --sidebar-border: 220 22% 17%;
+    --sidebar-ring: 142 84% 60%; /* Brand green */
+    
+    /* Brand-aligned design tokens */
+    --brand-green: 142 84% 60%; /* #3AF585 */
+    --brand-green-glow: 142 76% 70%; /* Lighter for glow */
+    --brand-gradient: linear-gradient(135deg, hsl(140 80% 50%), hsl(142 84% 60%), hsl(144 88% 70%));
+    --emerald-shadow: 0 0 20px hsl(142 84% 60% / 0.2);
+    
+    /* Status badge colors */
+    --tier-a: 142 84% 60% / 0.12; /* Green A tier background */
+    --tier-a-text: 142 70% 70%; /* Green A tier text */
+    --tier-a-border: 142 84% 60% / 0.3;
+    
+    --tier-b: 45 90% 50% / 0.12; /* Amber B tier background */
+    --tier-b-text: 45 80% 70%; /* Amber B tier text */
+    --tier-b-border: 45 90% 50% / 0.3;
+    
+    --tier-c: 220 9% 46% / 0.12; /* Slate C tier background */
+    --tier-c-text: 220 9% 70%; /* Slate C tier text */
+    --tier-c-border: 220 9% 46% / 0.3;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
