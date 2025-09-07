@@ -32,11 +32,15 @@ import {
 } from "@/components/ui/dialog"
 import { QualifiedAccount } from "@/lib/icp-mocks"
 import { DecisionMakers } from "./DecisionMakers"
+import { Prospect } from "@/hooks/useProspects"
 
 interface SummaryEnrichmentPopupProps {
   account: QualifiedAccount
   isOpen: boolean
   onClose: () => void
+  prospects?: Prospect[]
+  prospectsLoading?: boolean
+  prospectsError?: string | null
 }
 
 const tierColors = {
@@ -74,12 +78,66 @@ const roleColors = {
   'User': 'bg-purple-500/20 text-purple-300 border-purple-500/30'
 }
 
-export function SummaryEnrichmentPopup({ account, isOpen, onClose }: SummaryEnrichmentPopupProps) {
+export function SummaryEnrichmentPopup({ 
+  account, 
+  isOpen, 
+  onClose, 
+  prospects = [], 
+  prospectsLoading = false, 
+  prospectsError = null 
+}: SummaryEnrichmentPopupProps) {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric'
     })
+  }
+
+  // Transform prospects data to DecisionMaker format
+  const transformProspectsToDecisionMakers = (prospects: Prospect[]) => {
+    return prospects.map((prospect) => ({
+      id: prospect.prospect_id || `prospect-${Math.random()}`,
+      name: prospect.full_name || `${prospect.first_name || ''} ${prospect.last_name || ''}`.trim() || 'Unknown Name',
+      title: prospect.job_title || 'Unknown Title',
+      company: account.name,
+      location: [prospect.city, prospect.region_name, prospect.country_name].filter(Boolean).join(', '),
+      role: getRoleFromSeniority(prospect.job_seniority_level),
+      status: 'Found' as const,
+      contacts: {
+        email: prospect.professional_email_hashed ? { 
+          value: prospect.professional_email_hashed, 
+          status: 'Found' as const 
+        } : undefined,
+        linkedin: prospect.linkedin ? { 
+          value: prospect.linkedin, 
+          status: 'Found' as const 
+        } : undefined,
+        phone: undefined // Phone not available in prospects data
+      }
+    }))
+  }
+
+  // Helper function to map seniority level to decision maker role
+  const getRoleFromSeniority = (seniority?: string): 'Economic' | 'Champion' | 'Technical' | 'User' | 'Procurement' | 'Security' => {
+    if (!seniority) return 'User'
+    
+    const level = seniority.toLowerCase()
+    if (level.includes('c-level') || level.includes('executive') || level.includes('vp') || level.includes('chief')) {
+      return 'Economic'
+    }
+    if (level.includes('director') || level.includes('manager')) {
+      return 'Champion'
+    }
+    if (level.includes('engineer') || level.includes('developer') || level.includes('technical')) {
+      return 'Technical'
+    }
+    if (level.includes('security') || level.includes('compliance')) {
+      return 'Security'
+    }
+    if (level.includes('procurement') || level.includes('purchasing')) {
+      return 'Procurement'
+    }
+    return 'User'
   }
 
   return (
@@ -273,20 +331,23 @@ export function SummaryEnrichmentPopup({ account, isOpen, onClose }: SummaryEnri
 
                     {/* Right Column - Decision Makers (Enhanced) */}
                     <div className="lg:col-span-2">
-                      <DecisionMakers 
-                        decisionMakers={account.enrichment.committee.map((member, index) => ({
-                          id: `dm-${index}`,
-                          name: member.name,
-                          title: member.title,
-                          role: member.role as any,
-                          status: member.status as any,
-                          contacts: {
-                            email: member.name ? { value: `${member.name.toLowerCase().replace(' ', '.')}@${account.domain}`, status: 'Found' as const } : undefined,
-                            linkedin: Math.random() > 0.5 ? { value: `https://linkedin.com/in/${member.name?.toLowerCase().replace(' ', '-')}`, status: 'Found' as const } : undefined,
-                            phone: Math.random() > 0.7 ? { value: '+1-555-0123', status: 'Found' as const } : undefined,
-                          }
-                        }))}
-                      />
+                      {prospectsLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+                            <span className="text-muted-foreground">Loading decision makers...</span>
+                          </div>
+                        </div>
+                      ) : prospectsError ? (
+                        <div className="text-center py-8">
+                          <p className="text-red-400 mb-2">Error loading decision makers:</p>
+                          <p className="text-muted-foreground">{prospectsError}</p>
+                        </div>
+                      ) : (
+                        <DecisionMakers 
+                          decisionMakers={transformProspectsToDecisionMakers(prospects)}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>

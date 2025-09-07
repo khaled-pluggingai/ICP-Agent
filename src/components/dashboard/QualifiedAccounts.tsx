@@ -39,7 +39,6 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { QualifiedAccount } from "@/lib/icp-mocks"
 import { SummaryEnrichmentPopup } from "./SummaryEnrichmentPopup"
-import { DecisionMakersModal } from "./DecisionMakersModal"
 import { useExplorium } from "@/hooks/useExplorium"
 import { useProspects } from "@/hooks/useProspects"
 
@@ -67,8 +66,6 @@ export function QualifiedAccounts() {
   const [minIntentScore, setMinIntentScore] = useState<number>(0)
   const [viewMode, setViewMode] = useState<ViewMode>('comfortable')
   const [selectedAccount, setSelectedAccount] = useState<QualifiedAccount | null>(null)
-  const [decisionMakersModalOpen, setDecisionMakersModalOpen] = useState(false)
-  const [selectedCompanyForDM, setSelectedCompanyForDM] = useState<QualifiedAccount | null>(null)
 
   const filteredAccounts = useMemo(() => {
     return accounts.filter(account => {
@@ -85,16 +82,13 @@ export function QualifiedAccounts() {
 
   const handleViewSummary = (account: QualifiedAccount) => {
     setSelectedAccount(account)
-  }
-
-  const handleViewDecisionMakers = (account: QualifiedAccount) => {
-    setSelectedCompanyForDM(account)
-    setDecisionMakersModalOpen(true)
+    // Fetch decision makers data for the integrated modal
     // Prefer explicit business_id if present; fallback to account.id
     const businessId = (account as any).business_id ?? account.id
     console.log('QualifiedAccounts: fetching decision makers for business_id:', businessId, account)
     fetchProspectsByBusinessId(String(businessId))
   }
+
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString)
@@ -300,6 +294,7 @@ export function QualifiedAccounts() {
                             <button
                               onClick={() => handleViewSummary(account)}
                               className="font-medium text-foreground hover:text-green-400 transition-colors text-left"
+                              title="Click to view company details and decision makers"
                             >
                               {account.name}
                             </button>
@@ -410,7 +405,7 @@ export function QualifiedAccounts() {
                               <Eye className="w-4 h-4 mr-2" />
                               View Summary
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleViewDecisionMakers(account)}>
+                            <DropdownMenuItem onClick={() => handleViewSummary(account)}>
                               <Users className="w-4 h-4 mr-2" />
                               View Decision Makers
                             </DropdownMenuItem>
@@ -441,20 +436,12 @@ export function QualifiedAccounts() {
           account={selectedAccount}
           isOpen={!!selectedAccount}
           onClose={() => setSelectedAccount(null)}
+          prospects={prospects}
+          prospectsLoading={prospectsLoading}
+          prospectsError={prospectsError}
         />
       )}
 
-      <DecisionMakersModal
-        isOpen={decisionMakersModalOpen}
-        onClose={() => {
-          setDecisionMakersModalOpen(false)
-          setSelectedCompanyForDM(null)
-        }}
-        companyName={selectedCompanyForDM?.name || ""}
-        prospects={prospects}
-        loading={prospectsLoading}
-        error={prospectsError}
-      />
     </div>
   )
 }

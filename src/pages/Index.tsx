@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Moon, Sun } from "lucide-react"
 import { useEffect, useState } from "react"
 import { ICPChat } from "@/components/dashboard/ICPChat"
-import ICPAgentMonitor from "@/components/ui/icp-agent-monitor"
 
 const Index = () => {
   const { theme, setTheme } = useTheme()
@@ -105,8 +104,7 @@ const Index = () => {
         </motion.div>
       </div>
       
-      {/* ICP Agent Monitor - Floating Widget */}
-      <ICPAgentMonitor />
+
     </div>
   );
 };

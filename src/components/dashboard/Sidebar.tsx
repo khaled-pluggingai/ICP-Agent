@@ -5,7 +5,7 @@ import { BarChart3, Brain, Users, Target, TrendingUp, Building2, Activity } from
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 
-type Section = "overview" | "accounts" | "segments" | "insights" | "trainer" | "monitor"
+type Section = "overview" | "accounts" | "segments" | "insights" | "trainer"
 
 interface DashboardSidebarProps {
   activeSection: Section
@@ -18,7 +18,6 @@ const navigationItems = [
   { id: "segments" as const, label: "Segments", icon: Users },
   { id: "insights" as const, label: "Pipeline Insights", icon: TrendingUp },
   { id: "trainer" as const, label: "ICP Trainer", icon: Brain },
-  { id: "monitor" as const, label: "Live Monitor", icon: Activity },
 ]
 
 export function DashboardSidebar({ activeSection, onSectionChange }: DashboardSidebarProps) {

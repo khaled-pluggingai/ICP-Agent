@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,6 +44,20 @@ export function ICPChat() {
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
+  const [sessionId, setSessionId] = useState<string>("")
+
+  // Generate sessionId on component mount
+  useEffect(() => {
+    const generateSessionId = () => {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    };
+    
+    setSessionId(generateSessionId());
+  }, []);
 
   const renderSearchResults = (results: SearchResult[]) => {
     return (
@@ -75,76 +89,75 @@ export function ICPChat() {
     const currentInput = input
     setInput("")
     setIsLoading(true)
-    setIsSearching(true)
-
-    // Add searching message
-    const searchingMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      content: (
-        <div className="flex items-center gap-2">
-          <Loader2 className="w-4 h-4 animate-spin text-green-400" />
-          <span>Searching for companies... This may take a moment.</span>
-        </div>
-      ),
-      role: "assistant",
-      timestamp: new Date()
-    }
-    setMessages(prev => [...prev, searchingMessage])
 
     try {
-      const response = await fetch('https://newformtech.app.n8n.cloud/webhook-test/03137c1c-6c48-4ec6-bd0f-f90c7a41f0ff', {
+      const response = await fetch('https://newformtech.app.n8n.cloud/webhook/03137c1c-6c48-4ec6-bd0f-f90c7a41f0ff', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           query: currentInput,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          sessionId: sessionId
         })
       })
 
       if (response.ok) {
         const data = await response.json()
         
-        // Remove searching message and add results
-        setMessages(prev => {
-          const withoutSearching = prev.filter(msg => msg.id !== searchingMessage.id)
-          const resultsMessage: Message = {
-            id: (Date.now() + 2).toString(),
-            content: renderSearchResults(data.results || []),
-            role: "assistant",
-            timestamp: new Date()
-          }
-          return [...withoutSearching, resultsMessage]
-        })
-      } else {
-        // Handle error
-        setMessages(prev => {
-          const withoutSearching = prev.filter(msg => msg.id !== searchingMessage.id)
-          const errorMessage: Message = {
-            id: (Date.now() + 2).toString(),
-            content: "Sorry, I encountered an error while searching. Please try again with a more specific query including country, industry, revenue, and company size.",
-            role: "assistant",
-            timestamp: new Date()
-          }
-          return [...withoutSearching, errorMessage]
-        })
-      }
-    } catch (error) {
-      // Handle network error
-      setMessages(prev => {
-        const withoutSearching = prev.filter(msg => msg.id !== searchingMessage.id)
-        const errorMessage: Message = {
-          id: (Date.now() + 2).toString(),
-          content: "Sorry, I couldn't connect to the search service. Please check your connection and try again.",
+        // Create response message based on the webhook response
+        let responseContent: React.ReactNode
+        
+        if (data.output) {
+          // Extract the output field from the webhook response
+          responseContent = data.output
+        } else if (data.results && Array.isArray(data.results) && data.results.length > 0) {
+          // If we have search results, display them
+          responseContent = renderSearchResults(data.results)
+        } else if (data.message) {
+          // If the webhook returns a message field
+          responseContent = data.message
+        } else if (data.text) {
+          // If the webhook returns a text field
+          responseContent = data.text
+        } else if (data.content) {
+          // If the webhook returns a content field
+          responseContent = data.content
+        } else {
+          // Fallback for any other response format
+          responseContent = typeof data === 'string' ? data : JSON.stringify(data)
+        }
+
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: responseContent,
           role: "assistant",
           timestamp: new Date()
         }
-        return [...withoutSearching, errorMessage]
-      })
+        
+        setMessages(prev => [...prev, assistantMessage])
+      } else {
+        // Handle HTTP error
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: "Sorry, I encountered an error while processing your request. Please try again with a more specific query including country, industry, revenue, and company size.",
+          role: "assistant",
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, errorMessage])
+      }
+    } catch (error) {
+      // Handle network error
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "Sorry, I couldn't connect to the service. Please check your connection and try again.",
+        role: "assistant",
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
-      setIsSearching(false)
     }
   }
 
