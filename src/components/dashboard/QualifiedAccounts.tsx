@@ -89,6 +89,98 @@ export function QualifiedAccounts() {
     fetchProspectsByBusinessId(String(businessId))
   }
 
+  const handleExportCSV = () => {
+    if (filteredAccounts.length === 0) {
+      alert('No accounts to export')
+      return
+    }
+
+    // Create CSV headers
+    const headers = [
+      'Business ID',
+      'Company Name',
+      'Domain',
+      'Industry',
+      'Location',
+      'Employees',
+      'Tier',
+      'Fit Score',
+      'Intent Score',
+      'Intent Delta (14d)',
+      'Description',
+      'CEO/Founder',
+      'Contact Email',
+      'Phone Number',
+      'Address',
+      'Mission/Vision',
+      'NAICS Code',
+      'NAICS Description',
+      'SIC Code',
+      'SIC Description',
+      'Revenue Range',
+      'Founded Year',
+      'Products/Services',
+      'LinkedIn URL',
+      'Website'
+    ]
+
+    // Create CSV rows
+    const csvRows = filteredAccounts.map(account => [
+      account.id,
+      account.name,
+      account.domain,
+      account.industry,
+      account.geo,
+      account.employees,
+      account.tier,
+      account.fit_score,
+      account.intent_score,
+      account.intent_delta_14d,
+      account.description,
+      account.rawData?.ceo_founder || '',
+      account.rawData?.contact_email || '',
+      account.rawData?.phone_number || '',
+      account.rawData?.physical_address || '',
+      account.rawData?.mission_vision || '',
+      account.rawData?.naics || '',
+      account.rawData?.naics_description || '',
+      account.rawData?.sic_code || '',
+      account.rawData?.sic_code_description || '',
+      account.rawData?.yearly_revenue_range || '',
+      account.rawData?.founded_year || '',
+      account.rawData?.main_products_services || '',
+      account.rawData?.['linkedin-url'] || '',
+      account.rawData?.website || ''
+    ])
+
+    // Escape CSV values (handle commas, quotes, newlines)
+    const escapeCSV = (value: any) => {
+      if (value === null || value === undefined) return ''
+      const stringValue = String(value)
+      if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+        return `"${stringValue.replace(/"/g, '""')}"`
+      }
+      return stringValue
+    }
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.map(escapeCSV).join(','),
+      ...csvRows.map(row => row.map(escapeCSV).join(','))
+    ].join('\n')
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `qualified-accounts-${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString)
@@ -152,7 +244,7 @@ export function QualifiedAccounts() {
             Create Account
           </Button>
           
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportCSV}>
             <Download className="w-4 h-4" />
             Export CSV
           </Button>

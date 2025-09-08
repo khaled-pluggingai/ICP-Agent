@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import clsx from "clsx"
 import { CampaignModal } from "@/components/dashboard/CampaignModal"
+import { HudButton } from "@/components/ui/hud-button"
 
 export interface NavOption {
   id: string
@@ -90,14 +91,28 @@ export default function AnimatedRadioNav() {
         </div>
       </div>
 
-      {/* Campaign Section */}
+      {/* Actions Section */}
       <div className="mt-6 pt-6 border-t border-border/50">
         <div className="px-3">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
             Actions
           </h3>
-          <div className="flex justify-center">
-            <CampaignModal />
+          <div className="space-y-3">
+            {/* Chat with AI Button */}
+            <div className="flex justify-center">
+              <HudButton 
+                style="style2" 
+                variant="primary"
+                onClick={() => navigate("/")}
+              >
+                Chat with AI
+              </HudButton>
+            </div>
+            
+            {/* Run Campaign Button */}
+            <div className="flex justify-center">
+              <CampaignModal />
+            </div>
           </div>
         </div>
       </div>

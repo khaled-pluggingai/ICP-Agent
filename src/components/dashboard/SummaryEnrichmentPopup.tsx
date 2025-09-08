@@ -609,10 +609,87 @@ export function SummaryEnrichmentPopup({
                             <p className="text-red-400 mb-2">Error loading decision makers:</p>
                             <p className="text-muted-foreground">{prospectsError}</p>
                           </div>
+                        ) : prospects.length === 0 ? (
+                          <div className="text-center py-8">
+                            <p className="text-muted-foreground">No decision makers found for this company</p>
+                          </div>
                         ) : (
-                          <DecisionMakers 
-                            decisionMakers={transformProspectsToDecisionMakers(prospects)}
-                          />
+                          <div className="space-y-4">
+                            {prospects.map((prospect) => (
+                              <div key={prospect.prospect_id} className="border border-green-500/20 rounded-lg p-4 bg-background/50">
+                                {/* Header */}
+                                <div className="mb-3">
+                                  <h4 className="font-semibold text-base text-green-300 mb-1">{prospect.full_name}</h4>
+                                  <p className="text-sm text-muted-foreground">{prospect.job_title}</p>
+                                </div>
+                                
+                                {/* Details */}
+                                <div className="space-y-3">
+                                  {prospect.country_name && (
+                                    <div>
+                                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Location</span>
+                                      <p className="text-sm mt-1">{prospect.country_name}</p>
+                                    </div>
+                                  )}
+                                  
+                                  {prospect.experience && (
+                                    <div>
+                                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Experience</span>
+                                      <div className="mt-1">
+                                        {Array.isArray(prospect.experience) ? (
+                                          <div className="flex flex-wrap gap-1">
+                                            {prospect.experience.map((exp, index) => (
+                                              <span key={index} className="text-xs bg-green-500/10 text-green-300 px-2 py-1 rounded border border-green-500/20">
+                                                {exp}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <p className="text-sm">{prospect.experience}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {prospect.skills && (
+                                    <div>
+                                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Skills</span>
+                                      <div className="mt-1">
+                                        {Array.isArray(prospect.skills) ? (
+                                          <div className="flex flex-wrap gap-1">
+                                            {prospect.skills.map((skill, index) => (
+                                              <span key={index} className="text-xs bg-blue-500/10 text-blue-300 px-2 py-1 rounded border border-blue-500/20">
+                                                {skill}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <p className="text-sm">{prospect.skills}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {prospect.linkedin && (
+                                    <div>
+                                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">LinkedIn</span>
+                                      <div className="mt-1">
+                                        <a 
+                                          href={prospect.linkedin.startsWith('http') ? prospect.linkedin : `https://${prospect.linkedin}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-sm text-green-400 hover:text-green-300 flex items-center gap-2"
+                                        >
+                                          <span>View Profile</span>
+                                          <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
 

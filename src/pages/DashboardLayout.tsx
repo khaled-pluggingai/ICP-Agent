@@ -1,8 +1,7 @@
-import { Outlet, useNavigate } from "react-router-dom"
+import { Outlet } from "react-router-dom"
 import { motion } from "framer-motion"
-import { Brain, MessageCircle } from "lucide-react"
+import { Brain } from "lucide-react"
 import AnimatedRadioNav from "@/components/ui/animated-radio-nav"
-import { Button } from "@/components/ui/button"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -25,7 +24,6 @@ const itemVariants = {
 }
 
 export default function DashboardLayout() {
-  const navigate = useNavigate()
   return (
     <motion.div 
       className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex"
@@ -82,19 +80,6 @@ export default function DashboardLayout() {
           className="p-6"
           variants={itemVariants}
         >
-          {/* Chat with AI Button */}
-          <div className="fixed top-6 right-6 z-50">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/")}
-              className="gap-2 bg-background/80 backdrop-blur-sm border-emerald-500/20 hover:border-emerald-500/40 hover:bg-emerald-500/5"
-            >
-              <MessageCircle className="w-4 h-4" />
-              Chat with AI
-            </Button>
-          </div>
-          
           <Outlet />
         </motion.div>
       </main>
