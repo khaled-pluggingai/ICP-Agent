@@ -27,6 +27,38 @@ export type QualifiedAccount = {
     references: Array<{source: 'Crunchbase' | 'G2' | 'LinkedIn' | 'News' | 'Website' | 'Other', url?: string}>;
     committee: Array<{name?: string, title: string, role: 'Economic' | 'Champion' | 'User', status: 'Found' | 'Missing'}>;
   };
+  // Raw Supabase data for additional fields
+  rawData?: {
+    business_id: string;
+    name: string;
+    domain?: string;
+    website?: string;
+    business_description?: string;
+    company_description?: string;
+    logo?: string;
+    score?: number;
+    industry?: string;
+    region?: string;
+    country_name?: string;
+    number_of_employees_range?: string;
+    company_size?: string;
+    founded_year?: string;
+    main_products_services?: string;
+    'linkedin-url'?: string;
+    intent_score?: number;
+    ceo_founder?: string;
+    contact_email?: string;
+    phone_number?: string;
+    physical_address?: string;
+    mission_vision?: string;
+    naics?: number;
+    naics_description?: string;
+    sic_code?: string;
+    sic_code_description?: string;
+    target_customers?: string;
+    yearly_revenue_range?: string;
+    reasone?: string;
+  };
 };
 
 export const qualifiedAccounts: QualifiedAccount[] = [

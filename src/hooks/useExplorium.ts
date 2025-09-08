@@ -26,7 +26,7 @@ export function useExplorium() {
         console.log('Available columns in first item:', data?.[0] ? Object.keys(data[0]) : 'No data')
 
         // Map explorium data to QualifiedAccount format
-        const mappedAccounts: QualifiedAccount[] = (data || []).map((item) => ({
+        const mappedAccounts: QualifiedAccount[] = (data || []).map((item: any) => ({
           id: item.business_id,
           name: item.name || "Unknown Company",
           domain: item.domain || item.website || "unknown.com",
@@ -62,6 +62,38 @@ export function useExplorium() {
               ...(item["linkedin-url"] ? [{ source: "LinkedIn" as const, url: item["linkedin-url"] }] : [])
             ],
             committee: []
+          },
+          // Store raw Supabase data for additional fields
+          rawData: {
+            business_id: item.business_id,
+            name: item.name,
+            domain: item.domain,
+            website: item.website,
+            business_description: item.business_description,
+            company_description: item.company_description,
+            logo: item.logo,
+            score: item.score,
+            industry: item.industry,
+            region: item.region,
+            country_name: item.country_name,
+            number_of_employees_range: item.number_of_employees_range,
+            company_size: item.company_size,
+            founded_year: item.founded_year,
+            main_products_services: item.main_products_services,
+            'linkedin-url': item["linkedin-url"],
+            intent_score: (item as any).intent_score ?? (item as any)['Intent Score'],
+            ceo_founder: item.ceo_founder,
+            contact_email: item.contact_email,
+            phone_number: item.phone_number,
+            physical_address: item.physical_address,
+            mission_vision: item.mission_vision,
+            naics: item.naics,
+            naics_description: item.naics_description,
+            sic_code: item.sic_code,
+            sic_code_description: item.sic_code_description,
+            target_customers: item.target_customers,
+            yearly_revenue_range: item.yearly_revenue_range,
+            reasone: item.reasone
           }
         }))
 

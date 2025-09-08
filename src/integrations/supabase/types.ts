@@ -396,6 +396,7 @@ export type Database = {
           domain?: string | null
           founded_year?: string | null
           industry?: string | null
+          intent_score?: number | null
           "linkedin-url"?: string | null
           logo?: string | null
           main_products_services?: string | null
@@ -426,6 +427,7 @@ export type Database = {
           domain?: string | null
           founded_year?: string | null
           industry?: string | null
+          intent_score?: number | null
           "linkedin-url"?: string | null
           logo?: string | null
           main_products_services?: string | null
@@ -449,25 +451,25 @@ export type Database = {
       }
       explorium_events: {
         Row: {
-          business_id: string
-          data: Json
           event_id: string
           event_name: string
           event_time: string
+          data: Json | null
+          business_id: string
         }
         Insert: {
-          business_id: string
-          data: Json
           event_id: string
           event_name: string
           event_time: string
+          data?: Json | null
+          business_id: string
         }
         Update: {
-          business_id?: string
-          data?: Json
           event_id?: string
           event_name?: string
           event_time?: string
+          data?: Json | null
+          business_id?: string
         }
         Relationships: []
       }
