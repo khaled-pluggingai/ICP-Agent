@@ -365,6 +365,7 @@ export type Database = {
           domain: string | null
           founded_year: string | null
           industry: string | null
+          intent_score: number | null
           "linkedin-url": string | null
           logo: string | null
           main_products_services: string | null

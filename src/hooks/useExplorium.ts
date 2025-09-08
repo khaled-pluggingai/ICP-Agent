@@ -16,8 +16,14 @@ export function useExplorium() {
           .select('*')
 
         if (error) {
+          console.error('Supabase query error:', error)
           throw error
         }
+
+        // Debug logging to check what data is being fetched
+        console.log('Supabase explorium data:', data)
+        console.log('Sample item:', data?.[0])
+        console.log('Available columns in first item:', data?.[0] ? Object.keys(data[0]) : 'No data')
 
         // Map explorium data to QualifiedAccount format
         const mappedAccounts: QualifiedAccount[] = (data || []).map((item) => ({
@@ -32,7 +38,7 @@ export function useExplorium() {
           employees: parseEmployeeCount(item.number_of_employees_range || item.company_size),
           tech_stack: [], // Not available in explorium table
           fit_score: Math.min(100, Math.max(0, item.score || 0)), // Ensure 0-100 range
-          intent_score: Math.floor(Math.random() * 40) + 60, // Random for now
+          intent_score: (item as any).intent_score ?? (item as any)['Intent Score'] ?? Math.floor(Math.random() * 40) + 60, // Try different column names for Intent Score
           intent_delta_14d: Math.floor(Math.random() * 41) - 20, // Random -20 to +20
           last_activity_at: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
           rules_match: {
@@ -59,7 +65,14 @@ export function useExplorium() {
           }
         }))
 
-        setAccounts(mappedAccounts)
+        // Filter out companies with fit_score = 0 (strictly greater than zero required)
+        const filteredAccounts = mappedAccounts.filter(account => account.fit_score > 0)
+
+        // Debug logging to check mapped accounts
+        console.log('Mapped accounts sample:', filteredAccounts.slice(0, 2))
+        console.log('Intent scores in mapped accounts:', filteredAccounts.map(acc => ({ name: acc.name, intent_score: acc.intent_score })).slice(0, 5))
+
+        setAccounts(filteredAccounts)
         setError(null)
       } catch (err) {
         console.error('Error fetching explorium data:', err)
