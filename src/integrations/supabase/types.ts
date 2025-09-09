@@ -1157,6 +1157,81 @@ export type Database = {
         }
         Relationships: []
       }
+      icp_data: {
+        Row: {
+          id: number
+          industries: string[] | null
+          geos: string[] | null
+          employee_range_min: number | null
+          employee_range_max: number | null
+          acv_range_min: number | null
+          acv_range_max: number | null
+          must_have_tech: string[] | null
+          must_have_compliance: string[] | null
+          must_have_motion: string | null
+          disq_industries: string[] | null
+          disq_geos: string[] | null
+          disq_tech: string[] | null
+          disq_sizecap_min: number | null
+          disq_sizecap_max: number | null
+          buying_triggers: string[] | null
+          personas: string[] | null
+          weight_firmographic: number | null
+          weight_technographic: number | null
+          weight_intent: number | null
+          weight_behavioral: number | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: number
+          industries?: string[] | null
+          geos?: string[] | null
+          employee_range_min?: number | null
+          employee_range_max?: number | null
+          acv_range_min?: number | null
+          acv_range_max?: number | null
+          must_have_tech?: string[] | null
+          must_have_compliance?: string[] | null
+          must_have_motion?: string | null
+          disq_industries?: string[] | null
+          disq_geos?: string[] | null
+          disq_tech?: string[] | null
+          disq_sizecap_min?: number | null
+          disq_sizecap_max?: number | null
+          buying_triggers?: string[] | null
+          personas?: string[] | null
+          weight_firmographic?: number | null
+          weight_technographic?: number | null
+          weight_intent?: number | null
+          weight_behavioral?: number | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: number
+          industries?: string[] | null
+          geos?: string[] | null
+          employee_range_min?: number | null
+          employee_range_max?: number | null
+          acv_range_min?: number | null
+          acv_range_max?: number | null
+          must_have_tech?: string[] | null
+          must_have_compliance?: string[] | null
+          must_have_motion?: string | null
+          disq_industries?: string[] | null
+          disq_geos?: string[] | null
+          disq_tech?: string[] | null
+          disq_sizecap_min?: number | null
+          disq_sizecap_max?: number | null
+          buying_triggers?: string[] | null
+          personas?: string[] | null
+          weight_firmographic?: number | null
+          weight_technographic?: number | null
+          weight_intent?: number | null
+          weight_behavioral?: number | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

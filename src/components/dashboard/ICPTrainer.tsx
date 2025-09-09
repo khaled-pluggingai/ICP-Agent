@@ -1,7 +1,6 @@
 "use client"
 
-import { useState } from "react"
-import { motion } from "framer-motion"
+import { useState, useEffect } from "react"
 import { HudButton } from "@/components/ui/hud-button"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
@@ -12,75 +11,64 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChipInput } from "@/components/ui/chip-input"
 import { useToast } from "@/hooks/use-toast"
-
-interface ICPModel {
-  companyProfile: {
-    industries: string[]
-    geos: string[]
-    employeeRange: [number, number]
-    acvRange: [number, number]
-  }
-  mustHaves: {
-    tech: string[]
-    compliance: string[]
-    motion: string
-  }
-  disqualifiers: {
-    industries: string[]
-    geos: string[]
-    tech: string[]
-    sizeCaps: [number, number]
-  }
-  buyingTriggers: string[]
-  personas: string[]
-  weights: {
-    firmographic: number
-    technographic: number
-    intent: number
-    behavioral: number
-  }
-}
-
-const sampleAccounts = [
-  { name: "TechCorp Inc", fit_score: 92, tier: "A" },
-  { name: "StartupXYZ", fit_score: 78, tier: "B" },
-  { name: "Enterprise Ltd", fit_score: 65, tier: "C" },
-  { name: "Innovation Co", fit_score: 88, tier: "A" },
-  { name: "DataCorp", fit_score: 71, tier: "B" },
-]
+import { useICPData, type ICPModel } from "@/hooks/useICPData"
 
 export function ICPTrainer() {
   const { toast } = useToast()
+  const { saveICPData, getLatestICPData, icpData, loading, error, convertFromDatabaseFormat } = useICPData()
   const [activeTab, setActiveTab] = useState("form")
+  const [selectedModelId, setSelectedModelId] = useState<number | null>(null)
+  const [isInitialized, setIsInitialized] = useState(false)
   const [model, setModel] = useState<ICPModel>({
     companyProfile: {
-      industries: ["SaaS", "E-commerce"],
-      geos: ["North America", "Europe"],
-      employeeRange: [100, 1000],
-      acvRange: [50000, 500000]
+      industries: [],
+      geos: [],
+      employeeRange: [1, 10],
+      acvRange: [1000, 10000]
     },
     mustHaves: {
-      tech: ["Salesforce", "HubSpot"],
-      compliance: ["SOC2", "GDPR"],
+      tech: [],
+      compliance: [],
       motion: "PLG"
     },
     disqualifiers: {
-      industries: ["Government"],
-      geos: ["Restricted Markets"],
-      tech: ["Legacy CRM"],
-      sizeCaps: [0, 50]
+      industries: [],
+      geos: [],
+      tech: [],
+      sizeCaps: [1, 10]
     },
-    buyingTriggers: ["funding", "key hires", "tech change"],
-    personas: ["CMO", "VP Sales", "RevOps"],
+    buyingTriggers: [],
+    personas: [],
     weights: {
-      firmographic: 8,
-      technographic: 7,
-      intent: 9,
-      behavioral: 6
+      firmographic: 5,
+      technographic: 5,
+      intent: 5,
+      behavioral: 5
     }
   })
 
-  const [previewData, setPreviewData] = useState<typeof sampleAccounts | null>(null)
+
+  // Load latest ICP data only once on component mount
+  useEffect(() => {
+    if (!isInitialized) {
+      const latestData = getLatestICPData()
+      if (latestData) {
+        setModel(latestData)
+      }
+      setIsInitialized(true)
+    }
+  }, [getLatestICPData, isInitialized])
+
+  // Handle model selection from dropdown
+  const handleModelSelection = (modelId: string) => {
+    const id = parseInt(modelId)
+    setSelectedModelId(id)
+    const selectedData = icpData.find(data => data.id === id)
+    if (selectedData) {
+      const convertedModel = convertFromDatabaseFormat(selectedData)
+      setModel(convertedModel)
+    }
+  }
 
   const handleChipChange = (category: keyof ICPModel, field: string, values: string[]) => {
     if (category === "personas") {
@@ -99,39 +87,94 @@ export function ICPTrainer() {
     }
   }
 
-  const handlePreviewScoring = () => {
-    // Mock scoring logic
-    const scoredAccounts = sampleAccounts.map(account => ({
-      ...account,
-      fit_score: Math.floor(Math.random() * 40) + 60, // 60-100 range
-      tier: Math.random() > 0.6 ? "A" : Math.random() > 0.3 ? "B" : "C"
-    }))
-    setPreviewData(scoredAccounts)
-    toast({
-      title: "Scoring Complete",
-      description: "Mock scoring applied to sample accounts",
-    })
+
+  const validateRequiredFields = () => {
+    const errors: string[] = []
+    
+    if (model.companyProfile.industries.length === 0) {
+      errors.push("Industries is required")
+    }
+    
+    if (model.companyProfile.geos.length === 0) {
+      errors.push("Geographies is required")
+    }
+    
+    if (model.mustHaves.tech.length === 0) {
+      errors.push("Technology Stack is required")
+    }
+    
+    if (model.mustHaves.compliance.length === 0) {
+      errors.push("Compliance Requirements is required")
+    }
+    
+    if (!model.mustHaves.motion) {
+      errors.push("Sales Motion is required")
+    }
+    
+    return errors
   }
 
-  const handleSaveModel = () => {
-    toast({
-      title: "Model Saved",
-      description: "ICP Model v1.2 saved successfully",
-    })
+  const handleSaveModel = async () => {
+    const validationErrors = validateRequiredFields()
+    
+    if (validationErrors.length > 0) {
+      toast({
+        title: "Validation Error",
+        description: `Please fill in the following required fields: ${validationErrors.join(", ")}`,
+        variant: "destructive",
+      })
+      return
+    }
+    
+    try {
+      await saveICPData(model)
+      toast({
+        title: "Model Saved",
+        description: "ICP Model saved successfully to Supabase",
+      })
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to save ICP Model",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleSetActive = () => {
-    toast({
-      title: "Active ICP Updated",
-      description: "Model is now the active ICP configuration",
-    })
-  }
 
 
   return (
     <Card className="bg-card/50 backdrop-blur-sm border-border/50">
       <CardHeader>
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
         <CardTitle className="text-xl font-bold text-foreground">ICP Trainer</CardTitle>
+            {icpData.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {icpData.length} saved model{icpData.length !== 1 ? 's' : ''}
+              </Badge>
+            )}
+          </div>
+          {icpData.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Label htmlFor="model-select" className="text-sm text-muted-foreground">
+                Load Saved Model:
+              </Label>
+              <Select value={selectedModelId?.toString() || ""} onValueChange={handleModelSelection}>
+                <SelectTrigger id="model-select" className="w-48">
+                  <SelectValue placeholder="Select a model..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {icpData.map((data) => (
+                    <SelectItem key={data.id} value={data.id.toString()}>
+                      Model #{data.id} - {data.created_at ? new Date(data.created_at).toLocaleDateString() : 'Unknown date'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -140,89 +183,126 @@ export function ICPTrainer() {
             <TabsTrigger value="json">Live JSON Preview</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="form" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <TabsContent value="form" className="space-y-8">
+            {/* Instructions */}
+            <div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/50 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center mt-0.5">
+                  <span className="text-white text-xs font-bold">i</span>
+                </div>
+                <div>
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">How to use the ICP Trainer</h4>
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    Fill out the form below to define your Ideal Customer Profile. Use the chip inputs to add multiple values, 
+                    select from dropdowns for ranges, and check boxes for buying triggers. Fields marked with * are required. 
+                    Click "SAVE TO SUPABASE" to persist your configuration.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Company Profile */}
-              <div className="space-y-4">
+              <div className="space-y-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <h3 className="text-lg font-semibold text-foreground">Company Profile</h3>
+                </div>
                 
                 <ChipInput
-                  label="Industries"
+                  label="Industries *"
                   placeholder="Add industry..."
                   values={model.companyProfile.industries}
                   onChange={(values) => handleChipChange("companyProfile", "industries", values)}
                 />
                 
                 <ChipInput
-                  label="Geographies"
+                  label="Geographies *"
                   placeholder="Add geography..."
                   values={model.companyProfile.geos}
                   onChange={(values) => handleChipChange("companyProfile", "geos", values)}
                 />
 
                 <div className="space-y-2">
-                  <Label>Employee Range</Label>
-                  <div className="px-3">
-                    <Slider
-                      value={model.companyProfile.employeeRange}
-                      onValueChange={(value) => setModel(prev => ({
+                  <Label>Employee Range *</Label>
+                  <Select
+                    value={model.companyProfile.employeeRange.join('-')}
+                    onValueChange={(value) => {
+                      const [min, max] = value.split('-').map(Number)
+                      setModel(prev => ({
                         ...prev,
-                        companyProfile: { ...prev.companyProfile, employeeRange: value as [number, number] }
-                      }))}
-                      max={10000}
-                      min={1}
-                      step={50}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>{model.companyProfile.employeeRange[0]}</span>
-                      <span>{model.companyProfile.employeeRange[1]}</span>
-                    </div>
-                  </div>
+                        companyProfile: { 
+                          ...prev.companyProfile, 
+                          employeeRange: [min, max] as [number, number] 
+                        }
+                      }))
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select employee range..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1-10">1–10 employees</SelectItem>
+                      <SelectItem value="11-50">11–50 employees</SelectItem>
+                      <SelectItem value="51-200">51–200 employees</SelectItem>
+                      <SelectItem value="201-500">201–500 employees</SelectItem>
+                      <SelectItem value="500-10000">500+ employees</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>ACV Range ($)</Label>
-                  <div className="px-3">
-                    <Slider
-                      value={model.companyProfile.acvRange}
-                      onValueChange={(value) => setModel(prev => ({
+                  <Label>ACV Range ($) *</Label>
+                  <Select
+                    value={model.companyProfile.acvRange.join('-')}
+                    onValueChange={(value) => {
+                      const [min, max] = value.split('-').map(Number)
+                      setModel(prev => ({
                         ...prev,
-                        companyProfile: { ...prev.companyProfile, acvRange: value as [number, number] }
-                      }))}
-                      max={1000000}
-                      min={1000}
-                      step={10000}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>${model.companyProfile.acvRange[0].toLocaleString()}</span>
-                      <span>${model.companyProfile.acvRange[1].toLocaleString()}</span>
-                    </div>
-                  </div>
+                        companyProfile: { 
+                          ...prev.companyProfile, 
+                          acvRange: [min, max] as [number, number] 
+                        }
+                      }))
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select ACV range..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1000-10000">$1k–$10k</SelectItem>
+                      <SelectItem value="10000-50000">$10k–$50k</SelectItem>
+                      <SelectItem value="50000-100000">$50k–$100k</SelectItem>
+                      <SelectItem value="100000-500000">$100k–$500k</SelectItem>
+                      <SelectItem value="500000-1000000">$500k+</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
               {/* Must-Haves & Disqualifiers */}
-              <div className="space-y-4">
+              <div className="space-y-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <h3 className="text-lg font-semibold text-foreground">Must-Haves</h3>
+                </div>
                 
                 <ChipInput
-                  label="Technology Stack"
+                  label="Technology Stack *"
                   placeholder="Add technology..."
                   values={model.mustHaves.tech}
                   onChange={(values) => handleChipChange("mustHaves", "tech", values)}
                 />
 
                 <ChipInput
-                  label="Compliance Requirements"
+                  label="Compliance Requirements *"
                   placeholder="Add compliance..."
                   values={model.mustHaves.compliance}
                   onChange={(values) => handleChipChange("mustHaves", "compliance", values)}
                 />
 
                 <div className="space-y-2">
-                  <Label>Sales Motion</Label>
+                  <Label>Sales Motion *</Label>
                   <Select
                     value={model.mustHaves.motion}
                     onValueChange={(value) => setModel(prev => ({
@@ -241,24 +321,74 @@ export function ICPTrainer() {
                   </Select>
                 </div>
 
-                <h3 className="text-lg font-semibold text-foreground pt-4">Disqualifiers</h3>
+                <div className="flex items-center gap-2 pt-4">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <h3 className="text-lg font-semibold text-foreground">Disqualifiers</h3>
+                </div>
+                
                 <ChipInput
                   label="Excluded Industries"
                   placeholder="Add excluded industry..."
                   values={model.disqualifiers.industries}
                   onChange={(values) => handleChipChange("disqualifiers", "industries", values)}
                 />
+
+                <ChipInput
+                  label="Excluded Geographies"
+                  placeholder="Add excluded geography..."
+                  values={model.disqualifiers.geos}
+                  onChange={(values) => handleChipChange("disqualifiers", "geos", values)}
+                />
+
+                <ChipInput
+                  label="Excluded Technologies"
+                  placeholder="Add excluded technology..."
+                  values={model.disqualifiers.tech}
+                  onChange={(values) => handleChipChange("disqualifiers", "tech", values)}
+                />
+
+                <div className="space-y-2">
+                  <Label>Excluded Size Range</Label>
+                  <Select
+                    value={model.disqualifiers.sizeCaps.join('-')}
+                    onValueChange={(value) => {
+                      const [min, max] = value.split('-').map(Number)
+                      setModel(prev => ({
+                        ...prev,
+                        disqualifiers: { 
+                          ...prev.disqualifiers, 
+                          sizeCaps: [min, max] as [number, number] 
+                        }
+                      }))
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select excluded size range..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1-10">1–10 employees</SelectItem>
+                      <SelectItem value="11-50">11–50 employees</SelectItem>
+                      <SelectItem value="51-200">51–200 employees</SelectItem>
+                      <SelectItem value="201-500">201–500 employees</SelectItem>
+                      <SelectItem value="500-10000">500+ employees</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
             {/* Buying Triggers & Personas */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                 <h3 className="text-lg font-semibold text-foreground">Buying Triggers</h3>
-                <div className="space-y-2">
+                </div>
+                <div className="space-y-3">
                   {["funding", "key hires", "tech change", "product launches"].map((trigger) => (
-                    <div key={trigger} className="flex items-center space-x-2">
+                    <div key={trigger} className="flex items-center space-x-3">
                       <Checkbox
+                        id={`trigger-${trigger}`}
                         checked={model.buyingTriggers.includes(trigger)}
                         onCheckedChange={(checked) => {
                           if (checked) {
@@ -274,14 +404,22 @@ export function ICPTrainer() {
                           }
                         }}
                       />
-                      <Label className="capitalize">{trigger.replace('_', ' ')}</Label>
+                      <Label 
+                        htmlFor={`trigger-${trigger}`} 
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer capitalize"
+                      >
+                        {trigger.replace('_', ' ')}
+                      </Label>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                 <h3 className="text-lg font-semibold text-foreground">Target Personas</h3>
+                </div>
                 <ChipInput
                   label="Decision Maker Titles"
                   placeholder="Add persona title..."
@@ -292,19 +430,26 @@ export function ICPTrainer() {
             </div>
 
             {/* Weights */}
-            <div className="space-y-4">
+            <div className="space-y-6">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
               <h3 className="text-lg font-semibold text-foreground">Scoring Weights</h3>
+              </div>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                 {Object.entries(model.weights).map(([key, value]) => (
                   <div key={key} className="space-y-2">
-                    <Label className="capitalize">{key}</Label>
+                    <Label className="capitalize text-sm font-medium">{key}</Label>
                     <div className="px-3">
                       <Slider
                         value={[value]}
-                        onValueChange={(newValue) => setModel(prev => ({
+                        onValueChange={(newValue) => {
+                          if (newValue && newValue.length > 0) {
+                            setModel(prev => ({
                           ...prev,
                           weights: { ...prev.weights, [key]: newValue[0] }
-                        }))}
+                            }))
+                          }
+                        }}
                         max={10}
                         min={0}
                         step={1}
@@ -320,68 +465,65 @@ export function ICPTrainer() {
             </div>
 
             {/* Actions */}
-            <div className="flex flex-wrap gap-4 pt-6">
-              <HudButton
-                style="style2"
-                variant="primary"
-                onClick={handlePreviewScoring}
-              >
-                PREVIEW SCORING
-              </HudButton>
+            <div className="flex flex-wrap gap-4 pt-8 border-t border-border/30">
               <HudButton
                 style="style2"
                 variant="secondary"
-                onClick={handleSaveModel}
+                onClick={() => {
+                  setModel({
+                    companyProfile: {
+                      industries: [],
+                      geos: [],
+                      employeeRange: [1, 10],
+                      acvRange: [1000, 10000]
+                    },
+                    mustHaves: {
+                      tech: [],
+                      compliance: [],
+                      motion: "PLG"
+                    },
+                    disqualifiers: {
+                      industries: [],
+                      geos: [],
+                      tech: [],
+                      sizeCaps: [1, 10]
+                    },
+                    buyingTriggers: [],
+                    personas: [],
+                    weights: {
+                      firmographic: 5,
+                      technographic: 5,
+                      intent: 5,
+                      behavioral: 5
+                    }
+                  })
+                  setSelectedModelId(null)
+                  toast({
+                    title: "Form Cleared",
+                    description: "All fields have been reset to default values",
+                  })
+                }}
+                disabled={loading}
               >
-                SAVE AS V1.X
+                CLEAR FORM
               </HudButton>
               <HudButton
                 style="style2"
                 variant="primary"
-                onClick={handleSetActive}
+                onClick={handleSaveModel}
+                disabled={loading}
               >
-                SET ACTIVE
+                {loading ? "SAVING..." : "SAVE TO SUPABASE"}
               </HudButton>
             </div>
 
-            {/* Preview Results */}
-            {previewData && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-6"
-              >
-                <h3 className="text-lg font-semibold text-foreground mb-4">Scoring Preview</h3>
-                <div className="bg-muted/20 rounded-lg border border-border/50 overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-muted/30">
-                      <tr>
-                        <th className="text-left p-4 text-sm font-medium text-muted-foreground">Account</th>
-                        <th className="text-left p-4 text-sm font-medium text-muted-foreground">Fit Score</th>
-                        <th className="text-left p-4 text-sm font-medium text-muted-foreground">Tier</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {previewData.map((account, index) => (
-                        <tr key={index} className="border-t border-border/30">
-                          <td className="p-4 text-sm text-foreground">{account.name}</td>
-                          <td className="p-4 text-sm text-foreground">{account.fit_score}%</td>
-                          <td className="p-4">
-                            <Badge variant={
-                              account.tier === "A" ? "default" : 
-                              account.tier === "B" ? "secondary" : 
-                              "outline"
-                            }>
-                              Tier {account.tier}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            {/* Error Display */}
+            {error && (
+              <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <p className="text-sm text-destructive">Error: {error}</p>
                 </div>
-              </motion.div>
             )}
+
           </TabsContent>
 
           <TabsContent value="json">
