@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { HudButton } from "@/components/ui/hud-button"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
@@ -15,11 +16,12 @@ import { useICPData, type ICPModel } from "@/hooks/useICPData"
 
 export function ICPTrainer() {
   const { toast } = useToast()
-  const { saveICPData, getLatestICPData, icpData, loading, error, convertFromDatabaseFormat } = useICPData()
+  const { saveICPData, getLatestICPData, getPrimaryICPData, setPrimaryICP, icpData, loading, error, convertFromDatabaseFormat } = useICPData()
   const [activeTab, setActiveTab] = useState("form")
   const [selectedModelId, setSelectedModelId] = useState<number | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
   const [model, setModel] = useState<ICPModel>({
+    icpName: "",
     companyProfile: {
       industries: [],
       geos: [],
@@ -29,7 +31,7 @@ export function ICPTrainer() {
     mustHaves: {
       tech: [],
       compliance: [],
-      motion: "PLG"
+      motion: "None"
     },
     disqualifiers: {
       industries: [],
@@ -48,16 +50,26 @@ export function ICPTrainer() {
   })
 
 
-  // Load latest ICP data only once on component mount
+  // Load primary ICP data first, then latest if no primary exists
   useEffect(() => {
-    if (!isInitialized) {
-      const latestData = getLatestICPData()
-      if (latestData) {
-        setModel(latestData)
+    if (!isInitialized && icpData.length > 0) {
+      const primaryData = getPrimaryICPData()
+      if (primaryData) {
+        setModel(primaryData)
+        // Find the primary model ID
+        const primaryModel = icpData.find(data => data.is_primary === true)
+        if (primaryModel) {
+          setSelectedModelId(primaryModel.id)
+        }
+      } else {
+        const latestData = getLatestICPData()
+        if (latestData) {
+          setModel(latestData)
+        }
       }
       setIsInitialized(true)
     }
-  }, [getLatestICPData, isInitialized])
+  }, [getPrimaryICPData, getLatestICPData, icpData, isInitialized])
 
   // Handle model selection from dropdown
   const handleModelSelection = (modelId: string) => {
@@ -80,7 +92,7 @@ export function ICPTrainer() {
       setModel(prev => ({
         ...prev,
         [category]: {
-          ...prev[category as keyof ICPModel],
+          ...(prev[category as keyof ICPModel] as any),
           [field]: values
         }
       }))
@@ -91,24 +103,16 @@ export function ICPTrainer() {
   const validateRequiredFields = () => {
     const errors: string[] = []
     
+    if (!model.icpName.trim()) {
+      errors.push("ICP Model Name is required")
+    }
+    
     if (model.companyProfile.industries.length === 0) {
       errors.push("Industries is required")
     }
     
     if (model.companyProfile.geos.length === 0) {
       errors.push("Geographies is required")
-    }
-    
-    if (model.mustHaves.tech.length === 0) {
-      errors.push("Technology Stack is required")
-    }
-    
-    if (model.mustHaves.compliance.length === 0) {
-      errors.push("Compliance Requirements is required")
-    }
-    
-    if (!model.mustHaves.motion) {
-      errors.push("Sales Motion is required")
     }
     
     return errors
@@ -118,21 +122,52 @@ export function ICPTrainer() {
     const validationErrors = validateRequiredFields()
     
     if (validationErrors.length > 0) {
-      toast({
+    toast({
         title: "Validation Error",
         description: `Please fill in the following required fields: ${validationErrors.join(", ")}`,
         variant: "destructive",
-      })
+    })
       return
-    }
-    
+  }
+
     try {
       await saveICPData(model)
-      toast({
-        title: "Model Saved",
+    toast({
+      title: "Model Saved",
         description: "ICP Model saved successfully to Supabase",
       })
+      // Reset form after successful save
+      setModel({
+        icpName: "",
+        companyProfile: {
+          industries: [],
+          geos: [],
+          employeeRange: [1, 10],
+          acvRange: [1000, 10000]
+        },
+        mustHaves: {
+          tech: [],
+          compliance: [],
+          motion: "None"
+        },
+        disqualifiers: {
+          industries: [],
+          geos: [],
+          tech: [],
+          sizeCaps: [1, 10]
+        },
+        buyingTriggers: [],
+        personas: [],
+        weights: {
+          firmographic: 5,
+          technographic: 5,
+          intent: 5,
+          behavioral: 5
+        }
+      })
+      setSelectedModelId(null)
     } catch (err) {
+      console.error("Save error:", err)
       toast({
         title: "Error",
         description: "Failed to save ICP Model",
@@ -141,37 +176,95 @@ export function ICPTrainer() {
     }
   }
 
+  const handleSetPrimary = async (modelId: number) => {
+    try {
+      await setPrimaryICP(modelId)
+      setSelectedModelId(modelId)
+      toast({
+        title: "Primary ICP Updated",
+        description: "This ICP is now set as your primary configuration",
+      })
+    } catch (err) {
+    toast({
+        title: "Error",
+        description: "Failed to set primary ICP",
+        variant: "destructive",
+    })
+    }
+  }
+
 
 
   return (
     <Card className="bg-card/50 backdrop-blur-sm border-border/50">
       <CardHeader>
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-        <CardTitle className="text-xl font-bold text-foreground">ICP Trainer</CardTitle>
-            {icpData.length > 0 && (
-              <Badge variant="secondary" className="text-xs">
-                {icpData.length} saved model{icpData.length !== 1 ? 's' : ''}
-              </Badge>
-            )}
-          </div>
-          {icpData.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <Label htmlFor="model-select" className="text-sm text-muted-foreground">
-                Load Saved Model:
-              </Label>
-              <Select value={selectedModelId?.toString() || ""} onValueChange={handleModelSelection}>
-                <SelectTrigger id="model-select" className="w-48">
-                  <SelectValue placeholder="Select a model..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {icpData.map((data) => (
-                    <SelectItem key={data.id} value={data.id.toString()}>
-                      Model #{data.id} - {data.created_at ? new Date(data.created_at).toLocaleDateString() : 'Unknown date'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <CardTitle className="text-xl font-bold text-foreground">ICP Trainer</CardTitle>
+              {icpData.length > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {icpData.length} saved model{icpData.length !== 1 ? 's' : ''}
+                </Badge>
+              )}
+              {selectedModelId && icpData.find(data => data.id === selectedModelId)?.is_primary && (
+                <Badge variant="default" className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                  ⭐ Primary ICP
+                </Badge>
+              )}
+            </div>
+          </div>
+          {loading && icpData.length === 0 ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              Loading saved models...
+            </div>
+          ) : icpData.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="model-select" className="text-sm text-muted-foreground">
+                  Load Saved Model:
+                </Label>
+                <Select value={selectedModelId?.toString() || ""} onValueChange={handleModelSelection}>
+                  <SelectTrigger id="model-select" className="w-80">
+                    <SelectValue placeholder="Select a model..." />
+                  </SelectTrigger>
+                  <SelectContent className="w-80">
+                    {icpData.map((data) => (
+                      <SelectItem key={data.id} value={data.id.toString()} className="w-full">
+                        <div className="flex items-center gap-2 w-full">
+                          {data.is_primary && <span className="text-yellow-500">⭐</span>}
+                          <span className="flex-shrink-0">{data.icp_name || `Model #${data.id}`}</span>
+                          {data.is_primary && <Badge variant="secondary" className="text-xs flex-shrink-0">Primary</Badge>}
+                          <span className="text-muted-foreground text-sm">
+                            {data.created_at ? new Date(data.created_at).toLocaleDateString() : 'Unknown date'}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {selectedModelId && (
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSetPrimary(selectedModelId)}
+                    disabled={loading || icpData.find(data => data.id === selectedModelId)?.is_primary === true}
+                    className="flex items-center gap-2"
+                  >
+                    {icpData.find(data => data.id === selectedModelId)?.is_primary ? (
+                      <>
+                        <span>⭐</span>
+                        <span>Primary</span>
+                      </>
+                    ) : (
+                      <span>Set as Primary</span>
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -195,9 +288,27 @@ export function ICPTrainer() {
                   <p className="text-sm text-blue-700 dark:text-blue-300">
                     Fill out the form below to define your Ideal Customer Profile. Use the chip inputs to add multiple values, 
                     select from dropdowns for ranges, and check boxes for buying triggers. Fields marked with * are required. 
-                    Click "SAVE TO SUPABASE" to persist your configuration.
+                    Click "SAVE TO SUPABASE" to persist your configuration. You can set one ICP as your primary model ⭐ 
+                    which will auto-load when you open this page.
                   </p>
                 </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {/* ICP Model Name */}
+              <div className="space-y-2">
+                <Label htmlFor="icp-name" className="text-sm font-medium text-foreground">
+                  ICP Model Name *
+                </Label>
+                <input
+                  id="icp-name"
+                  type="text"
+                  value={model.icpName}
+                  onChange={(e) => setModel(prev => ({ ...prev, icpName: e.target.value }))}
+                  placeholder="Enter a name for your ICP model..."
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                />
               </div>
             </div>
 
@@ -288,21 +399,21 @@ export function ICPTrainer() {
                 </div>
                 
                 <ChipInput
-                  label="Technology Stack *"
+                  label="Technology Stack"
                   placeholder="Add technology..."
                   values={model.mustHaves.tech}
                   onChange={(values) => handleChipChange("mustHaves", "tech", values)}
                 />
 
                 <ChipInput
-                  label="Compliance Requirements *"
+                  label="Compliance Requirements"
                   placeholder="Add compliance..."
                   values={model.mustHaves.compliance}
                   onChange={(values) => handleChipChange("mustHaves", "compliance", values)}
                 />
 
                 <div className="space-y-2">
-                  <Label>Sales Motion *</Label>
+                  <Label>Sales Motion</Label>
                   <Select
                     value={model.mustHaves.motion}
                     onValueChange={(value) => setModel(prev => ({
@@ -314,6 +425,7 @@ export function ICPTrainer() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="None">None</SelectItem>
                       <SelectItem value="PLG">Product-Led Growth</SelectItem>
                       <SelectItem value="SLG">Sales-Led Growth</SelectItem>
                       <SelectItem value="ABM">Account-Based Marketing</SelectItem>
@@ -471,6 +583,7 @@ export function ICPTrainer() {
                 variant="secondary"
                 onClick={() => {
                   setModel({
+                    icpName: "",
                     companyProfile: {
                       industries: [],
                       geos: [],
@@ -480,7 +593,7 @@ export function ICPTrainer() {
                     mustHaves: {
                       tech: [],
                       compliance: [],
-                      motion: "PLG"
+                      motion: "None"
                     },
                     disqualifiers: {
                       industries: [],

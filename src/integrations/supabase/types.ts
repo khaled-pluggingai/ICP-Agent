@@ -1160,6 +1160,7 @@ export type Database = {
       icp_data: {
         Row: {
           id: number
+          icp_name: string | null
           industries: string[] | null
           geos: string[] | null
           employee_range_min: number | null
@@ -1180,10 +1181,12 @@ export type Database = {
           weight_technographic: number | null
           weight_intent: number | null
           weight_behavioral: number | null
+          is_primary: boolean | null
           created_at: string | null
         }
         Insert: {
           id?: number
+          icp_name?: string | null
           industries?: string[] | null
           geos?: string[] | null
           employee_range_min?: number | null
@@ -1204,10 +1207,12 @@ export type Database = {
           weight_technographic?: number | null
           weight_intent?: number | null
           weight_behavioral?: number | null
+          is_primary?: boolean | null
           created_at?: string | null
         }
         Update: {
           id?: number
+          icp_name?: string | null
           industries?: string[] | null
           geos?: string[] | null
           employee_range_min?: number | null
@@ -1228,6 +1233,7 @@ export type Database = {
           weight_technographic?: number | null
           weight_intent?: number | null
           weight_behavioral?: number | null
+          is_primary?: boolean | null
           created_at?: string | null
         }
         Relationships: []

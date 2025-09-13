@@ -7,6 +7,7 @@ type ICPDataInsert = TablesInsert<'icp_data'>
 type ICPDataUpdate = TablesUpdate<'icp_data'>
 
 export interface ICPModel {
+  icpName: string
   companyProfile: {
     industries: string[]
     geos: string[]
@@ -42,6 +43,7 @@ export function useICPData() {
   // Convert ICPModel to database format
   const convertToDatabaseFormat = (model: ICPModel): ICPDataInsert => {
     return {
+      icp_name: model.icpName,
       industries: model.companyProfile.industries,
       geos: model.companyProfile.geos,
       employee_range_min: model.companyProfile.employeeRange[0],
@@ -68,6 +70,7 @@ export function useICPData() {
   // Convert database format to ICPModel
   const convertFromDatabaseFormat = (data: ICPData): ICPModel => {
     return {
+      icpName: data.icp_name || `Model #${data.id}`,
       companyProfile: {
         industries: data.industries || [],
         geos: data.geos || [],
@@ -200,6 +203,45 @@ export function useICPData() {
     return convertFromDatabaseFormat(icpData[0])
   }
 
+  // Get the primary ICP data
+  const getPrimaryICPData = (): ICPModel | null => {
+    const primaryData = icpData.find(data => data.is_primary === true)
+    if (!primaryData) return null
+    return convertFromDatabaseFormat(primaryData)
+  }
+
+  // Set an ICP as primary (unset others)
+  const setPrimaryICP = async (id: number) => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      // First, unset all primary flags
+      const { error: unsetError } = await supabase
+        .from('icp_data')
+        .update({ is_primary: false })
+        .neq('id', id)
+
+      if (unsetError) throw unsetError
+
+      // Then set the selected ICP as primary
+      const { error: setError } = await supabase
+        .from('icp_data')
+        .update({ is_primary: true })
+        .eq('id', id)
+
+      if (setError) throw setError
+      
+      // Refresh the data list
+      await fetchICPData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to set primary ICP')
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Load data on mount
   useEffect(() => {
     fetchICPData()
@@ -214,6 +256,8 @@ export function useICPData() {
     updateICPData,
     deleteICPData,
     getLatestICPData,
+    getPrimaryICPData,
+    setPrimaryICP,
     convertToDatabaseFormat,
     convertFromDatabaseFormat,
   }
