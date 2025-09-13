@@ -11,6 +11,7 @@ import AnalyticsPage from "./pages/dashboard/Analytics";
 import SegmentsPage from "./pages/dashboard/Segments";
 import PipelineInsightsPage from "./pages/dashboard/PipelineInsights";
 import ICPTrainerPage from "./pages/dashboard/ICPTrainer";
+import AutomationSchedulerPage from "./pages/dashboard/AutomationScheduler";
 import LiveMonitorPage from "./pages/dashboard/LiveMonitor";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="segments" element={<SegmentsPage />} />
               <Route path="pipeline-insights" element={<PipelineInsightsPage />} />
               <Route path="icp-trainer" element={<ICPTrainerPage />} />
+              <Route path="automation-scheduler" element={<AutomationSchedulerPage />} />
               <Route path="live-monitor" element={<LiveMonitorPage />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

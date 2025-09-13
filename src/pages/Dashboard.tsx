@@ -12,9 +12,10 @@ import { AnalyticsOverview } from "@/components/dashboard/AnalyticsOverview"
 import { LeadScoring } from "@/components/dashboard/LeadScoring"
 import { PipelineInsights } from "@/components/dashboard/PipelineInsights"
 import { QualifiedAccounts } from "@/components/dashboard/QualifiedAccounts"
+import { AutomationScheduler } from "./dashboard/AutomationScheduler"
 
 const Dashboard = () => {
-  const [activeSection, setActiveSection] = useState<"overview" | "accounts" | "segments" | "insights" | "trainer">("overview")
+  const [activeSection, setActiveSection] = useState<"overview" | "accounts" | "segments" | "insights" | "trainer" | "automation">("overview")
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -75,6 +76,7 @@ const Dashboard = () => {
             {activeSection === "segments" && <SegmentsTable />}
             {activeSection === "insights" && <PipelineInsights />}
             {activeSection === "trainer" && <ICPTrainer />}
+            {activeSection === "automation" && <AutomationScheduler />}
           </motion.div>
         </motion.div>
       </main>

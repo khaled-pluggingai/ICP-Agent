@@ -18,6 +18,7 @@ const NAV_OPTIONS: NavOption[] = [
   { id: "nav-segments", value: "/dashboard/segments", label: "Segments" },
   { id: "nav-insights", value: "/dashboard/pipeline-insights", label: "Pipeline Insights" },
   { id: "nav-trainer", value: "/dashboard/icp-trainer", label: "ICP Trainer" },
+  { id: "nav-automation", value: "/dashboard/automation-scheduler", label: "Automation Scheduler" },
   { id: "nav-monitor", value: "/dashboard/live-monitor", label: "Live Monitor" },
 ]
 
@@ -42,10 +43,6 @@ export default function AnimatedRadioNav() {
     navigate(value)
   }
 
-  const getGliderTransform = () => {
-    const index = NAV_OPTIONS.findIndex((option) => option.value === selectedValue)
-    return `translateY(${index * 100}%)`
-  }
 
   return (
     <nav aria-label="ICP Agent Navigation" className="w-full">
@@ -67,28 +64,21 @@ export default function AnimatedRadioNav() {
               <label
                 htmlFor={option.id}
                 className={clsx(
-                  "cursor-pointer text-sm py-2 px-1 block transition-all duration-300 ease-in-out select-none",
+                  "cursor-pointer text-sm py-2 px-3 block transition-all duration-300 ease-in-out select-none rounded-md relative",
                   active
-                    ? "text-emerald-300 font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "text-emerald-300 font-semibold bg-emerald-500/10 border-l-2 border-emerald-500"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50 hover:border-l-2 hover:border-emerald-500/50"
                 )}
               >
                 {option.label}
+                {active && (
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 rounded-r-full" />
+                )}
               </label>
             </div>
           )
         })}
 
-        {/* vertical rail + animated glider */}
-        <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-border to-transparent">
-          <div
-            className="relative h-[calc(100%/6)] w-full bg-gradient-to-b from-transparent via-emerald-500 to-transparent transition-transform duration-500 ease-[cubic-bezier(0.37,1.95,0.66,0.56)]"
-            style={{ transform: getGliderTransform() }}
-          >
-            <div className="absolute top-1/2 -translate-y-1/2 h-3/5 w-[300%] bg-emerald-500 blur-[10px]" />
-            <div className="absolute left-0 h-full w-36 bg-gradient-to-r from-emerald-500/10 to-transparent" />
-          </div>
-        </div>
       </div>
 
       {/* Actions Section */}
