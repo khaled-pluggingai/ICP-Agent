@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState } from "react"
 import { motion } from "framer-motion"
 import { X, Loader2, User, MapPin, Briefcase, Mail, Linkedin, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -24,7 +24,53 @@ export function DecisionMakersModal({
   loading, 
   error 
 }: DecisionMakersModalProps) {
+  // State for tracking expanded sections for each prospect
+  const [expandedSections, setExpandedSections] = useState<Record<string, { skills: boolean; interests: boolean }>>({})
+  
   if (!isOpen) return null
+
+  // Helper function to parse string array to actual array
+  const parseStringArray = (str: string | string[]): string[] => {
+    if (Array.isArray(str)) return str
+    if (typeof str === 'string') {
+      try {
+        // Try to parse as JSON array
+        const parsed = JSON.parse(str)
+        return Array.isArray(parsed) ? parsed : []
+      } catch {
+        // If not JSON, split by comma and clean up
+        return str.split(',').map(item => item.trim().replace(/^["']|["']$/g, ''))
+      }
+    }
+    return []
+  }
+
+  // Helper function to truncate array to first 3 items
+  const truncateArray = (arr: string[], maxItems: number = 3) => {
+    if (!Array.isArray(arr)) return []
+    return arr.slice(0, maxItems)
+  }
+
+  // Helper function to get a unique prospect key
+  const getProspectKey = (prospect: Prospect, index: number) => {
+    return prospect.prospect_id || `prospect-${index}-${prospect.full_name || 'unknown'}`
+  }
+
+  // Helper function to toggle expanded state
+  const toggleExpanded = (prospectKey: string, section: 'skills' | 'interests') => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [prospectKey]: {
+        ...prev[prospectKey],
+        [section]: !prev[prospectKey]?.[section]
+      }
+    }))
+  }
+
+  // Helper function to check if section is expanded
+  const isExpanded = (prospectKey: string, section: 'skills' | 'interests') => {
+    return expandedSections[prospectKey]?.[section] || false
+  }
 
   const getInitials = (name?: string) => {
     if (!name) return "?"
@@ -91,7 +137,9 @@ export function DecisionMakersModal({
 
           {!loading && !error && prospects.length > 0 && (
             <div className="grid gap-4">
-              {prospects.map((prospect) => (
+              {prospects.map((prospect, index) => {
+                const prospectKey = getProspectKey(prospect, index)
+                return (
                 <Card key={prospect.prospect_id} className="bg-card/50 border-green-500/20">
                   <CardContent className="p-4">
                     <div className="flex items-start gap-4">
@@ -166,17 +214,75 @@ export function DecisionMakersModal({
                         )}
 
                         {(prospect.skills || prospect.interests) && (
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             {prospect.skills && (
                               <div>
-                                <span className="text-xs font-medium text-muted-foreground">Skills: </span>
-                                <span className="text-xs text-muted-foreground">{prospect.skills}</span>
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Skills</span>
+                                <div className="mt-1">
+                                  {(() => {
+                                    const skillsArray = parseStringArray(prospect.skills)
+                                    return skillsArray.length > 0 ? (
+                                      <div className="space-y-2">
+                                        <div className="space-y-1">
+                                          {(isExpanded(prospectKey, 'skills') 
+                                            ? skillsArray 
+                                            : truncateArray(skillsArray)
+                                          ).map((skill, skillIndex) => (
+                                            <div key={skillIndex} className="flex items-start gap-2">
+                                              <span className="text-xs text-white font-medium">{skillIndex + 1} -</span>
+                                              <span className="text-xs text-white leading-relaxed">{skill}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                        {skillsArray.length > 3 && (
+                                          <button
+                                            onClick={() => toggleExpanded(prospectKey, 'skills')}
+                                            className="text-xs text-white hover:text-gray-300 transition-colors underline font-medium"
+                                          >
+                                            {isExpanded(prospectKey, 'skills') ? 'See Less' : 'See More'}
+                                          </button>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <p className="text-sm">{prospect.skills}</p>
+                                    )
+                                  })()}
+                                </div>
                               </div>
                             )}
                             {prospect.interests && (
                               <div>
-                                <span className="text-xs font-medium text-muted-foreground">Interests: </span>
-                                <span className="text-xs text-muted-foreground">{prospect.interests}</span>
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Interests</span>
+                                <div className="mt-1">
+                                  {(() => {
+                                    const interestsArray = parseStringArray(prospect.interests)
+                                    return interestsArray.length > 0 ? (
+                                      <div className="space-y-2">
+                                        <div className="space-y-1">
+                                          {(isExpanded(prospectKey, 'interests') 
+                                            ? interestsArray 
+                                            : truncateArray(interestsArray)
+                                          ).map((interest, interestIndex) => (
+                                            <div key={interestIndex} className="flex items-start gap-2">
+                                              <span className="text-xs text-white font-medium">{interestIndex + 1} -</span>
+                                              <span className="text-xs text-white leading-relaxed">{interest}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                        {interestsArray.length > 3 && (
+                                          <button
+                                            onClick={() => toggleExpanded(prospectKey, 'interests')}
+                                            className="text-xs text-white hover:text-gray-300 transition-colors underline font-medium"
+                                          >
+                                            {isExpanded(prospectKey, 'interests') ? 'See Less' : 'See More'}
+                                          </button>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <p className="text-sm">{prospect.interests}</p>
+                                    )
+                                  })()}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -185,7 +291,8 @@ export function DecisionMakersModal({
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

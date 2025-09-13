@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
   X, 
@@ -87,6 +87,9 @@ export function SummaryEnrichmentPopup({
   prospectsLoading = false, 
   prospectsError = null 
 }: SummaryEnrichmentPopupProps) {
+  // State for tracking expanded sections for each prospect
+  const [expandedSections, setExpandedSections] = useState<Record<string, { experience: boolean; skills: boolean }>>({})
+  
   // Fetch events for this company
   const { events, loading: eventsLoading, error: eventsError } = useExploriumEvents(account.id)
   const formatDate = (dateString: string) => {
@@ -104,6 +107,49 @@ export function SummaryEnrichmentPopup({
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  // Helper function to parse string array to actual array
+  const parseStringArray = (str: string | string[]): string[] => {
+    if (Array.isArray(str)) return str
+    if (typeof str === 'string') {
+      try {
+        // Try to parse as JSON array
+        const parsed = JSON.parse(str)
+        return Array.isArray(parsed) ? parsed : []
+      } catch {
+        // If not JSON, split by comma and clean up
+        return str.split(',').map(item => item.trim().replace(/^["']|["']$/g, ''))
+      }
+    }
+    return []
+  }
+
+  // Helper function to truncate array to first 3 items
+  const truncateArray = (arr: string[], maxItems: number = 3) => {
+    if (!Array.isArray(arr)) return []
+    return arr.slice(0, maxItems)
+  }
+
+  // Helper function to get a unique prospect key
+  const getProspectKey = (prospect: Prospect, index: number) => {
+    return prospect.prospect_id || `prospect-${index}-${prospect.full_name || 'unknown'}`
+  }
+
+  // Helper function to toggle expanded state
+  const toggleExpanded = (prospectKey: string, section: 'experience' | 'skills') => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [prospectKey]: {
+        ...prev[prospectKey],
+        [section]: !prev[prospectKey]?.[section]
+      }
+    }))
+  }
+
+  // Helper function to check if section is expanded
+  const isExpanded = (prospectKey: string, section: 'experience' | 'skills') => {
+    return expandedSections[prospectKey]?.[section] || false
   }
 
   const renderEventData = (data: Record<string, any> | null) => {
@@ -615,8 +661,10 @@ export function SummaryEnrichmentPopup({
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {prospects.map((prospect) => (
-                              <div key={prospect.prospect_id} className="border border-green-500/20 rounded-lg p-4 bg-background/50">
+                            {prospects.map((prospect, index) => {
+                              const prospectKey = getProspectKey(prospect, index)
+                              return (
+                              <div key={prospectKey} className="border border-green-500/20 rounded-lg p-4 bg-background/50">
                                 {/* Header */}
                                 <div className="mb-3">
                                   <h4 className="font-semibold text-base text-green-300 mb-1">{prospect.full_name}</h4>
@@ -636,17 +684,34 @@ export function SummaryEnrichmentPopup({
                                     <div>
                                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Experience</span>
                                       <div className="mt-1">
-                                        {Array.isArray(prospect.experience) ? (
-                                          <div className="flex flex-wrap gap-1">
-                                            {prospect.experience.map((exp, index) => (
-                                              <span key={index} className="text-xs bg-green-500/10 text-green-300 px-2 py-1 rounded border border-green-500/20">
-                                                {exp}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        ) : (
-                                          <p className="text-sm">{prospect.experience}</p>
-                                        )}
+                                        {(() => {
+                                          const experienceArray = parseStringArray(prospect.experience)
+                                          return experienceArray.length > 0 ? (
+                                            <div className="space-y-2">
+                                              <div className="space-y-1">
+                                                {(isExpanded(prospectKey, 'experience') 
+                                                  ? experienceArray 
+                                                  : truncateArray(experienceArray)
+                                                ).map((exp, expIndex) => (
+                                                  <div key={expIndex} className="flex items-start gap-2">
+                                                    <span className="text-xs text-white font-medium">{expIndex + 1} -</span>
+                                                    <span className="text-xs text-white leading-relaxed">{exp}</span>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                              {experienceArray.length > 3 && (
+                                                <button
+                                                  onClick={() => toggleExpanded(prospectKey, 'experience')}
+                                                  className="text-xs text-white hover:text-gray-300 transition-colors underline font-medium"
+                                                >
+                                                  {isExpanded(prospectKey, 'experience') ? 'See Less' : 'See More'}
+                                                </button>
+                                              )}
+                                            </div>
+                                          ) : (
+                                            <p className="text-sm">{prospect.experience}</p>
+                                          )
+                                        })()}
                                       </div>
                                     </div>
                                   )}
@@ -655,17 +720,34 @@ export function SummaryEnrichmentPopup({
                                     <div>
                                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Skills</span>
                                       <div className="mt-1">
-                                        {Array.isArray(prospect.skills) ? (
-                                          <div className="flex flex-wrap gap-1">
-                                            {prospect.skills.map((skill, index) => (
-                                              <span key={index} className="text-xs bg-blue-500/10 text-blue-300 px-2 py-1 rounded border border-blue-500/20">
-                                                {skill}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        ) : (
-                                          <p className="text-sm">{prospect.skills}</p>
-                                        )}
+                                        {(() => {
+                                          const skillsArray = parseStringArray(prospect.skills)
+                                          return skillsArray.length > 0 ? (
+                                            <div className="space-y-2">
+                                              <div className="space-y-1">
+                                                {(isExpanded(prospectKey, 'skills') 
+                                                  ? skillsArray 
+                                                  : truncateArray(skillsArray)
+                                                ).map((skill, skillIndex) => (
+                                                  <div key={skillIndex} className="flex items-start gap-2">
+                                                    <span className="text-xs text-white font-medium">{skillIndex + 1} -</span>
+                                                    <span className="text-xs text-white leading-relaxed">{skill}</span>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                              {skillsArray.length > 3 && (
+                                                <button
+                                                  onClick={() => toggleExpanded(prospectKey, 'skills')}
+                                                  className="text-xs text-white hover:text-gray-300 transition-colors underline font-medium"
+                                                >
+                                                  {isExpanded(prospectKey, 'skills') ? 'See Less' : 'See More'}
+                                                </button>
+                                              )}
+                                            </div>
+                                          ) : (
+                                            <p className="text-sm">{prospect.skills}</p>
+                                          )
+                                        })()}
                                       </div>
                                     </div>
                                   )}
@@ -688,7 +770,8 @@ export function SummaryEnrichmentPopup({
                                   )}
                                 </div>
                               </div>
-                            ))}
+                              )
+                            })}
                           </div>
                         )}
                       </div>
