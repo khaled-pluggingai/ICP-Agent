@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Send, Bot, User, Sparkles, Zap, Building, Globe, ExternalLink, Loader2 } from "lucide-react"
+import { Send, Bot, User, Sparkles, Zap, Building, Globe, ExternalLink, Loader2, RefreshCw, AlertCircle, CheckCircle } from "lucide-react"
 import CompanyResult from './CompanyResult'
 
 interface Message {
@@ -20,6 +20,13 @@ interface SearchResult {
   company_name: string
   company_linkedin: string
   company_website: string
+}
+
+interface ProcessingStage {
+  id: string
+  message: string
+  completed: boolean
+  timestamp: Date
 }
 
 export function ICPChat() {
@@ -45,6 +52,14 @@ export function ICPChat() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [sessionId, setSessionId] = useState<string>("")
+  const [processingStages, setProcessingStages] = useState<ProcessingStage[]>([])
+  const [currentStage, setCurrentStage] = useState<string>("")
+  const [isPolling, setIsPolling] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
+  const [lastError, setLastError] = useState<string>("")
+  
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Generate sessionId on component mount
   useEffect(() => {
@@ -58,6 +73,94 @@ export function ICPChat() {
     
     setSessionId(generateSessionId());
   }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const initializeProcessingStages = () => {
+    const stages: ProcessingStage[] = [
+      { id: "analyzing", message: "Analyzing your search criteria...", completed: false, timestamp: new Date() },
+      { id: "searching", message: "Searching our database...", completed: false, timestamp: new Date() },
+      { id: "processing", message: "Processing and validating results...", completed: false, timestamp: new Date() },
+      { id: "compiling", message: "Compiling final results...", completed: false, timestamp: new Date() }
+    ];
+    setProcessingStages(stages);
+    setCurrentStage("analyzing");
+  };
+
+  const updateProcessingStage = (stageId: string) => {
+    setProcessingStages(prev => 
+      prev.map(stage => 
+        stage.id === stageId 
+          ? { ...stage, completed: true, timestamp: new Date() }
+          : stage
+      )
+    );
+    setCurrentStage(stageId);
+  };
+
+  const startPolling = async (query: string, sessionId: string) => {
+    setIsPolling(true);
+    let pollCount = 0;
+    const maxPolls = 30; // 5 minutes with 10-second intervals
+
+    const poll = async () => {
+      try {
+        pollCount++;
+        const response = await fetch('https://newformtech.app.n8n.cloud/webhook/exa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query,
+            timestamp: new Date().toISOString(),
+            sessionId,
+            polling: true,
+            pollCount
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.status === 'completed' || data.results || data.output) {
+            setIsPolling(false);
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+            }
+            return data;
+          } else if (data.status === 'processing') {
+            // Update processing stage based on poll count
+            const stageIndex = Math.min(Math.floor(pollCount / 7), 3);
+            const stages = ['analyzing', 'searching', 'processing', 'compiling'];
+            updateProcessingStage(stages[stageIndex]);
+          }
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+
+      if (pollCount >= maxPolls) {
+        setIsPolling(false);
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+        }
+        throw new Error('Request timed out after 5 minutes');
+      }
+    };
+
+    // Start polling
+    pollingIntervalRef.current = setInterval(poll, 10000);
+    return poll(); // Initial poll
+  };
 
   const renderSearchResults = (results: SearchResult[]) => {
     return (
@@ -75,6 +178,66 @@ export function ICPChat() {
     )
   }
 
+  const renderProcessingStages = () => {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-green-400 mb-4">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="font-semibold">Processing Your Request</span>
+        </div>
+        <div className="space-y-2">
+          {processingStages.map((stage, index) => (
+            <motion.div
+              key={stage.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.2 }}
+              className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
+                stage.completed 
+                  ? 'bg-green-500/10 border border-green-400/30' 
+                  : stage.id === currentStage
+                  ? 'bg-green-500/20 border border-green-400/50'
+                  : 'bg-gray-500/10 border border-gray-400/20'
+              }`}
+            >
+              <motion.div
+                animate={stage.completed ? { scale: [1, 1.2, 1] } : {}}
+                className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  stage.completed 
+                    ? 'bg-green-500' 
+                    : stage.id === currentStage
+                    ? 'bg-green-500/50'
+                    : 'bg-gray-500/30'
+                }`}
+              >
+                {stage.completed ? (
+                  <CheckCircle className="w-4 h-4 text-white" />
+                ) : stage.id === currentStage ? (
+                  <Loader2 className="w-4 h-4 text-white animate-spin" />
+                ) : (
+                  <div className="w-2 h-2 bg-white/50 rounded-full" />
+                )}
+              </motion.div>
+              <span className={`text-sm ${
+                stage.completed 
+                  ? 'text-green-400' 
+                  : stage.id === currentStage
+                  ? 'text-green-300'
+                  : 'text-gray-400'
+              }`}>
+                {stage.message}
+              </span>
+            </motion.div>
+          ))}
+        </div>
+        <div className="text-xs text-green-400/70 mt-3 flex items-center gap-2">
+          <Zap className="w-3 h-3" />
+          This may take up to 5 minutes for complex searches
+        </div>
+      </div>
+    );
+  };
+
   const handleSend = async () => {
     if (!input.trim()) return
 
@@ -89,9 +252,29 @@ export function ICPChat() {
     const currentInput = input
     setInput("")
     setIsLoading(true)
+    setLastError("")
+    setRetryCount(0)
+
+    // Initialize processing stages
+    initializeProcessingStages()
+
+    // Add processing message to chat
+    const processingMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      content: renderProcessingStages(),
+      role: "assistant",
+      timestamp: new Date()
+    }
+    setMessages(prev => [...prev, processingMessage])
 
     try {
-      const response = await fetch('https://newformtech.app.n8n.cloud/webhook/03137c1c-6c48-4ec6-bd0f-f90c7a41f0ff', {
+      // Create abort controller with 5-minute timeout
+      abortControllerRef.current = new AbortController()
+      const timeoutId = setTimeout(() => {
+        abortControllerRef.current?.abort()
+      }, 5 * 60 * 1000) // 5 minutes
+
+      const response = await fetch('https://newformtech.app.n8n.cloud/webhook/exa', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -100,32 +283,32 @@ export function ICPChat() {
           query: currentInput,
           timestamp: new Date().toISOString(),
           sessionId: sessionId
-        })
+        }),
+        signal: abortControllerRef.current.signal
       })
+
+      clearTimeout(timeoutId)
 
       if (response.ok) {
         const data = await response.json()
+        
+        // Remove processing message and add actual response
+        setMessages(prev => prev.slice(0, -1))
         
         // Create response message based on the webhook response
         let responseContent: React.ReactNode
         
         if (data.output) {
-          // Extract the output field from the webhook response
           responseContent = data.output
         } else if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-          // If we have search results, display them
           responseContent = renderSearchResults(data.results)
         } else if (data.message) {
-          // If the webhook returns a message field
           responseContent = data.message
         } else if (data.text) {
-          // If the webhook returns a text field
           responseContent = data.text
         } else if (data.content) {
-          // If the webhook returns a content field
           responseContent = data.content
         } else {
-          // Fallback for any other response format
           responseContent = typeof data === 'string' ? data : JSON.stringify(data)
         }
 
@@ -138,26 +321,145 @@ export function ICPChat() {
         
         setMessages(prev => [...prev, assistantMessage])
       } else {
-        // Handle HTTP error
-        const errorMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          content: "Sorry, I encountered an error while processing your request. Please try again with a more specific query including country, industry, revenue, and company size.",
-          role: "assistant",
-          timestamp: new Date()
-        }
-        setMessages(prev => [...prev, errorMessage])
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
-    } catch (error) {
-      // Handle network error
+    } catch (error: any) {
+      // Remove processing message
+      setMessages(prev => prev.slice(0, -1))
+      
+      let errorContent: React.ReactNode
+      
+      if (error.name === 'AbortError') {
+        // Timeout occurred, try polling as fallback
+        setLastError("Request timed out, switching to polling mode...")
+        
+        try {
+          const pollData = await startPolling(currentInput, sessionId)
+          
+          // Create response message from polling data
+          let responseContent: React.ReactNode
+          
+          if (pollData.output) {
+            responseContent = pollData.output
+          } else if (pollData.results && Array.isArray(pollData.results) && pollData.results.length > 0) {
+            responseContent = renderSearchResults(pollData.results)
+          } else if (pollData.message) {
+            responseContent = pollData.message
+          } else {
+            responseContent = typeof pollData === 'string' ? pollData : JSON.stringify(pollData)
+          }
+
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: responseContent,
+            role: "assistant",
+            timestamp: new Date()
+          }
+          
+          setMessages(prev => [...prev, assistantMessage])
+          return
+        } catch (pollError) {
+          errorContent = (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-red-400">
+                <AlertCircle className="w-4 h-4" />
+                <span className="font-semibold">Request Timeout</span>
+              </div>
+              <p className="text-sm text-foreground/80">
+                Your request took longer than 5 minutes to process. This can happen with complex searches.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => {
+                    setRetryCount(prev => prev + 1)
+                    handleSend()
+                  }}
+                  size="sm"
+                  className="bg-green-500 hover:bg-green-400 text-white"
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Retry Request
+                </Button>
+              </div>
+            </div>
+          )
+        }
+      } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        errorContent = (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-red-400">
+              <AlertCircle className="w-4 h-4" />
+              <span className="font-semibold">Connection Error</span>
+            </div>
+            <p className="text-sm text-foreground/80">
+              Unable to connect to the service. Please check your internet connection and try again.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  setRetryCount(prev => prev + 1)
+                  handleSend()
+                }}
+                size="sm"
+                className="bg-green-500 hover:bg-green-400 text-white"
+              >
+                <RefreshCw className="w-3 h-3 mr-1" />
+                Retry Connection
+              </Button>
+            </div>
+          </div>
+        )
+      } else {
+        errorContent = (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-red-400">
+              <AlertCircle className="w-4 h-4" />
+              <span className="font-semibold">Processing Error</span>
+            </div>
+            <p className="text-sm text-foreground/80">
+              {error.message || "An unexpected error occurred while processing your request."}
+            </p>
+            <p className="text-xs text-foreground/60">
+              Please ensure your query includes: country, industry, revenue, and company size.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  setRetryCount(prev => prev + 1)
+                  handleSend()
+                }}
+                size="sm"
+                className="bg-green-500 hover:bg-green-400 text-white"
+              >
+                <RefreshCw className="w-3 h-3 mr-1" />
+                Try Again
+              </Button>
+            </div>
+          </div>
+        )
+      }
+
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "Sorry, I couldn't connect to the service. Please check your connection and try again.",
+        content: errorContent,
         role: "assistant",
         timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
+      setIsPolling(false)
+      setProcessingStages([])
+      setCurrentStage("")
+      
+      // Clean up
+      if (abortControllerRef.current) {
+        abortControllerRef.current = null
+      }
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
     }
   }
 
@@ -349,7 +651,7 @@ export function ICPChat() {
               </AnimatePresence>
               
               {/* Enhanced typing indicator */}
-              {isLoading && (
+              {isLoading && !isPolling && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -391,7 +693,60 @@ export function ICPChat() {
                         transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
                         className="w-2 h-2 bg-green-400 rounded-full"
                       />
-                      <span className="text-xs text-green-400 ml-2">AI is thinking...</span>
+                      <span className="text-xs text-green-400 ml-2">
+                        {currentStage ? `AI is ${currentStage}...` : "AI is thinking..."}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Polling indicator */}
+              {isPolling && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="flex gap-4 justify-start"
+                >
+                  <motion.div 
+                     animate={{ 
+                       boxShadow: [
+                         "0 0 20px hsl(140 100% 50% / 0.3)",
+                         "0 0 30px hsl(140 100% 50% / 0.6)",
+                         "0 0 20px hsl(140 100% 50% / 0.3)"
+                       ]
+                     }}
+                     transition={{ duration: 1.5, repeat: Infinity }}
+                     className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center"
+                  >
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    >
+                      <RefreshCw className="w-5 h-5 text-white" />
+                    </motion.div>
+                  </motion.div>
+                  <div className="bg-gradient-to-br from-emerald-500/10 to-green-600/10 border border-emerald-400/30 p-4 rounded-2xl backdrop-blur-md">
+                    <div className="flex gap-2 items-center">
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity }}
+                        className="w-2 h-2 bg-emerald-400 rounded-full"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity, delay: 0.3 }}
+                        className="w-2 h-2 bg-emerald-400 rounded-full"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity, delay: 0.6 }}
+                        className="w-2 h-2 bg-emerald-400 rounded-full"
+                      />
+                      <span className="text-xs text-emerald-400 ml-2">
+                        Polling for results... ({currentStage || "processing"})
+                      </span>
                     </div>
                   </div>
                 </motion.div>
@@ -459,6 +814,27 @@ export function ICPChat() {
               <Zap className="w-3 h-3" />
               Press Enter to send
             </motion.div>
+            
+            {/* Status indicators */}
+            {(retryCount > 0 || lastError) && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute bottom-2 right-6 text-xs flex items-center gap-2"
+              >
+                {retryCount > 0 && (
+                  <span className="text-yellow-400/70">
+                    Retry #{retryCount}
+                  </span>
+                )}
+                {lastError && (
+                  <span className="text-red-400/70 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {lastError}
+                  </span>
+                )}
+              </motion.div>
+            )}
           </div>
         </Card>
       </div>
