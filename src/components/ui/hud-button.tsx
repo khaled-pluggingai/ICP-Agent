@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion"
 import type React from "react"
-import { useId, useState } from "react"
+import { forwardRef, useId, useState } from "react"
 import { useTheme } from "next-themes"
 import { HyperText } from "@/components/ui/hyper-text"
 
@@ -17,7 +17,7 @@ interface HudButtonProps {
   disabled?: boolean
 }
 
-export function HudButton({ 
+export const HudButton = forwardRef<HTMLButtonElement, HudButtonProps>(({ 
   children, 
   variant = "primary", 
   style = "style1",
@@ -26,7 +26,7 @@ export function HudButton({
   delay = 0,
   enableAnimations = true,
   disabled = false
-}: HudButtonProps) {
+}: HudButtonProps, ref) => {
   const shouldReduceMotion = useReducedMotion()
   const shouldAnimate = enableAnimations && !shouldReduceMotion
   const [isHovered, setIsHovered] = useState(false)
@@ -421,6 +421,7 @@ export function HudButton({
 
   return (
     <motion.button
+      ref={ref}
       className={`relative transform-gpu ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
       variants={shouldAnimate ? buttonVariants : {}}
       initial={shouldAnimate ? "hidden" : "show"}
@@ -503,4 +504,6 @@ export function HudButton({
       </motion.div>
     </motion.button>
   )
-}
+})
+
+HudButton.displayName = "HudButton"

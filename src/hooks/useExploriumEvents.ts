@@ -6,16 +6,16 @@ export interface ExploriumEvent {
   event_name: string
   event_time: string
   data: Record<string, any> | null
-  business_id: string
+  exa_id: string
 }
 
-export function useExploriumEvents(businessId?: string) {
+export function useExploriumEvents(exaId?: string) {
   const [events, setEvents] = useState<ExploriumEvent[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!businessId) {
+    if (!exaId) {
       setEvents([])
       setLoading(false)
       return
@@ -28,8 +28,8 @@ export function useExploriumEvents(businessId?: string) {
         
         const { data, error } = await supabase
           .from('explorium_events')
-          .select('event_id, event_name, event_time, data, business_id')
-          .eq('business_id', businessId)
+          .select('event_id, event_name, event_time, data, exa_id')
+          .eq('exa_id', exaId)
           .order('event_time', { ascending: false })
 
         if (error) {
@@ -52,7 +52,7 @@ export function useExploriumEvents(businessId?: string) {
     }
 
     fetchEvents()
-  }, [businessId])
+  }, [exaId])
 
   return { events, loading, error }
 }

@@ -353,99 +353,54 @@ export type Database = {
         }
         Relationships: []
       }
-      explorium: {
+      exa_companies: {
         Row: {
-          business_description: string | null
-          business_id: string
-          ceo_founder: string | null
-          company_description: string | null
-          company_size: string | null
-          contact_email: string | null
-          country_name: string | null
-          domain: string | null
-          founded_year: string | null
-          industry: string | null
-          intent_score: number | null
-          "linkedin-url": string | null
-          logo: string | null
-          main_products_services: string | null
-          mission_vision: string | null
-          naics: number | null
-          naics_description: string | null
-          name: string
-          number_of_employees_range: string | null
-          phone_number: string | null
-          physical_address: string | null
-          reasone: string | null
-          region: string | null
-          score: number | null
-          sic_code: string | null
-          sic_code_description: string | null
-          target_customers: string | null
-          website: string | null
-          yearly_revenue_range: string | null
+          id: string
+          properties: Json | null
+          evaluations: Json | null
+          enrichments: Json | null
+          created_at: string | null
+          updated_at: string | null
         }
         Insert: {
-          business_description?: string | null
-          business_id: string
-          ceo_founder?: string | null
-          company_description?: string | null
-          company_size?: string | null
-          contact_email?: string | null
-          country_name?: string | null
-          domain?: string | null
-          founded_year?: string | null
-          industry?: string | null
-          intent_score?: number | null
-          "linkedin-url"?: string | null
-          logo?: string | null
-          main_products_services?: string | null
-          mission_vision?: string | null
-          naics?: number | null
-          naics_description?: string | null
-          name: string
-          number_of_employees_range?: string | null
-          phone_number?: string | null
-          physical_address?: string | null
-          reasone?: string | null
-          region?: string | null
-          score?: number | null
-          sic_code?: string | null
-          sic_code_description?: string | null
-          target_customers?: string | null
-          website?: string | null
-          yearly_revenue_range?: string | null
+          id: string
+          properties?: Json | null
+          evaluations?: Json | null
+          enrichments?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
         }
         Update: {
-          business_description?: string | null
-          business_id?: string
-          ceo_founder?: string | null
-          company_description?: string | null
-          company_size?: string | null
-          contact_email?: string | null
-          country_name?: string | null
-          domain?: string | null
-          founded_year?: string | null
-          industry?: string | null
+          id?: string
+          properties?: Json | null
+          evaluations?: Json | null
+          enrichments?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      companies_enrichment: {
+        Row: {
+          exa_company_id: string
+          explorium_id: string | null
+          icp_fit_score: number | null
+          intent_score: number | null
+          status: string | null
+        }
+        Insert: {
+          exa_company_id: string
+          explorium_id?: string | null
+          icp_fit_score?: number | null
           intent_score?: number | null
-          "linkedin-url"?: string | null
-          logo?: string | null
-          main_products_services?: string | null
-          mission_vision?: string | null
-          naics?: number | null
-          naics_description?: string | null
-          name?: string
-          number_of_employees_range?: string | null
-          phone_number?: string | null
-          physical_address?: string | null
-          reasone?: string | null
-          region?: string | null
-          score?: number | null
-          sic_code?: string | null
-          sic_code_description?: string | null
-          target_customers?: string | null
-          website?: string | null
-          yearly_revenue_range?: string | null
+          status?: string | null
+        }
+        Update: {
+          exa_company_id?: string
+          explorium_id?: string | null
+          icp_fit_score?: number | null
+          intent_score?: number | null
+          status?: string | null
         }
         Relationships: []
       }
@@ -455,21 +410,21 @@ export type Database = {
           event_name: string
           event_time: string
           data: Json | null
-          business_id: string
+          exa_id: string
         }
         Insert: {
           event_id: string
           event_name: string
           event_time: string
           data?: Json | null
-          business_id: string
+          exa_id: string
         }
         Update: {
           event_id?: string
           event_name?: string
           event_time?: string
           data?: Json | null
-          business_id?: string
+          exa_id?: string
         }
         Relationships: []
       }
@@ -1093,7 +1048,7 @@ export type Database = {
       }
       prospects: {
         Row: {
-          business_id: string | null
+          exa_id: string | null
           city: string | null
           company_linkedin: string | null
           company_name: string | null
@@ -1114,7 +1069,7 @@ export type Database = {
           skills: string | null
         }
         Insert: {
-          business_id?: string | null
+          exa_id?: string | null
           city?: string | null
           company_linkedin?: string | null
           company_name?: string | null
@@ -1135,7 +1090,7 @@ export type Database = {
           skills?: string | null
         }
         Update: {
-          business_id?: string | null
+          exa_id?: string | null
           city?: string | null
           company_linkedin?: string | null
           company_name?: string | null

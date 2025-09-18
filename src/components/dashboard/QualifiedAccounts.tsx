@@ -39,7 +39,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { QualifiedAccount } from "@/lib/icp-mocks"
 import { SummaryEnrichmentPopup } from "./SummaryEnrichmentPopup"
-import { useExplorium } from "@/hooks/useExplorium"
+import { useExaCompanies } from "@/hooks/useExaCompanies"
 import { useProspects } from "@/hooks/useProspects"
 
 type ViewMode = 'comfortable' | 'compact'
@@ -57,28 +57,27 @@ const matchColors = {
 }
 
 export function QualifiedAccounts() {
-  const { accounts, loading, error } = useExplorium()
-  const { prospects, loading: prospectsLoading, error: prospectsError, fetchProspectsByBusinessId } = useProspects()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [tierFilter, setTierFilter] = useState<string>("all")
-  const [industryFilter, setIndustryFilter] = useState<string>("all")
-  const [minFitScore, setMinFitScore] = useState<number>(0)
-  const [minIntentScore, setMinIntentScore] = useState<number>(0)
-  const [viewMode, setViewMode] = useState<ViewMode>('comfortable')
-  const [selectedAccount, setSelectedAccount] = useState<QualifiedAccount | null>(null)
+  const { accounts, loading, error } = useExaCompanies();
+  const { prospects, loading: prospectsLoading, error: prospectsError, fetchProspectsByExaId } = useProspects();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [tierFilter, setTierFilter] = useState<string>("all");
+  const [industryFilter, setIndustryFilter] = useState<string>("all");
+  const [minFitScore, setMinFitScore] = useState<number>(10); // Default to 10 as per new schema
+  const [minIntentScore, setMinIntentScore] = useState<number>(0);
+  const [viewMode, setViewMode] = useState<ViewMode>('comfortable');
+  const [selectedAccount, setSelectedAccount] = useState<QualifiedAccount | null>(null);
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(true); // Keep dropdown open by default
 
   const filteredAccounts = useMemo(() => {
     return accounts.filter(account => {
-      const matchesSearch = account.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           account.domain.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesTier = tierFilter === "all" || account.tier === tierFilter
-      const matchesIndustry = industryFilter === "all" || account.industry === industryFilter
-      const matchesFitScore = account.fit_score >= minFitScore
-      const matchesIntentScore = account.intent_score >= minIntentScore
-
-      return matchesSearch && matchesTier && matchesIndustry && matchesFitScore && matchesIntentScore
-    })
-  }, [accounts, searchQuery, tierFilter, industryFilter, minFitScore, minIntentScore])
+      const matchesSearch = searchQuery === "" || account.properties?.company?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesTier = tierFilter === "all" || account.tier === tierFilter;
+      const matchesIndustry = industryFilter === "all" || account.properties?.company?.industry === industryFilter;
+      return matchesSearch && matchesTier && matchesIndustry;
+    });
+  }, [accounts, searchQuery, tierFilter, industryFilter]);
 
   const handleViewSummary = (account: QualifiedAccount) => {
     setSelectedAccount(account)
@@ -86,7 +85,7 @@ export function QualifiedAccounts() {
     // Prefer explicit business_id if present; fallback to account.id
     const businessId = (account as any).business_id ?? account.id
     console.log('QualifiedAccounts: fetching decision makers for business_id:', businessId, account)
-    fetchProspectsByBusinessId(String(businessId))
+    fetchProspectsByExaId(String(businessId))
   }
 
   const handleExportCSV = () => {
@@ -197,6 +196,27 @@ export function QualifiedAccounts() {
 
   const industries = Array.from(new Set(accounts.map(a => a.industry)))
 
+  const handleSendToClay = async () => {
+    try {
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: "john@stripe.com" }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to send data: ${response.statusText}`);
+      }
+
+      alert("Data sent successfully to Clay!");
+    } catch (error) {
+      console.error("Error sending data to Clay:", error);
+      setErrorMessage(error.message || "An unknown error occurred.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -267,6 +287,36 @@ export function QualifiedAccounts() {
               <List className="w-4 h-4" />
             </Button>
           </div>
+
+          {/* Send to Clay Button */}
+          <DropdownMenu open={dropdownOpen} onOpenChange={(isOpen) => setDropdownOpen(isOpen)}>
+            <DropdownMenuTrigger>
+              <Button className="send-to-clay-button beautiful-button" size="sm">
+                Send to Clay
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="popup-content" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem>
+                <Input
+                  type="text"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  placeholder="Enter webhook URL"
+                  className="webhook-input"
+                />
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Button onClick={handleSendToClay} className="send-data-button">
+                  Send Data
+                </Button>
+              </DropdownMenuItem>
+              {errorMessage && (
+                <DropdownMenuItem className="error-message">
+                  <span>{errorMessage}</span>
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </motion.div>
 
@@ -533,7 +583,6 @@ export function QualifiedAccounts() {
           prospectsError={prospectsError}
         />
       )}
-
     </div>
   )
 }

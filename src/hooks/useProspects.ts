@@ -20,7 +20,7 @@ export interface Prospect {
   job_department?: string
   job_seniority_level?: string
   job_title?: string
-  business_id?: string
+  exa_id?: string
 }
 
 export function useProspects() {
@@ -28,18 +28,18 @@ export function useProspects() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchProspectsByBusinessId = async (businessId: string) => {
+  const fetchProspectsByExaId = async (exaId: string) => {
     try {
       setLoading(true)
       setError(null)
 
-      const normalized = String(businessId ?? '').trim()
-      console.log('useProspects: querying prospects by business_id:', normalized)
+      const normalized = String(exaId ?? '').trim()
+      console.log('useProspects: querying prospects by exa_id:', normalized)
       
       const { data, error } = await supabase
         .from('prospects')
         .select('*')
-        .eq('business_id', normalized)
+        .eq('exa_id', normalized)
 
       if (error) {
         throw error
@@ -59,6 +59,6 @@ export function useProspects() {
     prospects,
     loading,
     error,
-    fetchProspectsByBusinessId
+    fetchProspectsByExaId
   }
 }

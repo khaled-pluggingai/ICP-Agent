@@ -27,6 +27,20 @@ export type QualifiedAccount = {
     references: Array<{source: 'Crunchbase' | 'G2' | 'LinkedIn' | 'News' | 'Website' | 'Other', url?: string}>;
     committee: Array<{name?: string, title: string, role: 'Economic' | 'Champion' | 'User', status: 'Found' | 'Missing'}>;
   };
+  properties?: {
+    company: {
+      name: string;
+      url: string;
+      industry: string;
+      employees: number;
+      about: string;
+    };
+  };
+  companies_enrichment?: {
+    icp_fit_score: number;
+    intent_score: number;
+    status: string;
+  };
   // Raw Supabase data for additional fields
   rawData?: {
     business_id: string;
@@ -110,6 +124,20 @@ export const qualifiedAccounts: QualifiedAccount[] = [
         {name: "Jake Miller", title: "VP Engineering", role: "Champion", status: "Found"},
         {title: "Director of Developer Experience", role: "User", status: "Missing"}
       ]
+    },
+    properties: {
+      company: {
+        name: "Retool",
+        url: "https://retool.com",
+        industry: "Developer Tools",
+        employees: 800,
+        about: "Retool is a low-code platform for building internal tools remarkably fast. Connects with any database or API."
+      }
+    },
+    companies_enrichment: {
+      icp_fit_score: 95,
+      intent_score: 87,
+      status: "Active"
     }
   },
   {
@@ -158,6 +186,20 @@ export const qualifiedAccounts: QualifiedAccount[] = [
         {title: "CTO", role: "Champion", status: "Missing"},
         {name: "Sarah Kim", title: "VP Product", role: "User", status: "Found"}
       ]
+    },
+    properties: {
+      company: {
+        name: "Gusto",
+        url: "https://gusto.com",
+        industry: "HR Tech",
+        employees: 3500,
+        about: "Gusto provides cloud-based payroll, benefits, and human resource management software for U.S. businesses."
+      }
+    },
+    companies_enrichment: {
+      icp_fit_score: 92,
+      intent_score: 78,
+      status: "Active"
     }
   },
   {
@@ -207,6 +249,20 @@ export const qualifiedAccounts: QualifiedAccount[] = [
         {title: "Head of Engineering", role: "Champion", status: "Missing"},
         {name: "Tuomas Artman", title: "Co-founder & CTO", role: "User", status: "Found"}
       ]
+    },
+    properties: {
+      company: {
+        name: "Linear",
+        url: "https://linear.app",
+        industry: "Productivity",
+        employees: 150,
+        about: "Linear is an issue tracking tool that helps software teams plan, track, and manage projects with ease."
+      }
+    },
+    companies_enrichment: {
+      icp_fit_score: 88,
+      intent_score: 91,
+      status: "Active"
     }
   },
   {
@@ -254,6 +310,20 @@ export const qualifiedAccounts: QualifiedAccount[] = [
         {title: "VP Engineering", role: "Champion", status: "Missing"},
         {name: "David Kim", title: "Head of Product", role: "User", status: "Found"}
       ]
+    },
+    properties: {
+      company: {
+        name: "Segment",
+        url: "https://segment.com",
+        industry: "Data Infrastructure",
+        employees: 1200,
+        about: "Segment is a customer data platform that helps businesses collect, clean, and control their customer data."
+      }
+    },
+    companies_enrichment: {
+      icp_fit_score: 85,
+      intent_score: 72,
+      status: "Active"
     }
   },
   {
@@ -302,6 +372,20 @@ export const qualifiedAccounts: QualifiedAccount[] = [
         {name: "Bryant Chou", title: "CTO", role: "Champion", status: "Found"},
         {title: "VP Product", role: "User", status: "Missing"}
       ]
+    },
+    properties: {
+      company: {
+        name: "Webflow",
+        url: "https://webflow.com",
+        industry: "Web Development",
+        employees: 700,
+        about: "Webflow is a visual web development platform that empowers designers to build responsive websites without coding."
+      }
+    },
+    companies_enrichment: {
+      icp_fit_score: 90,
+      intent_score: 83,
+      status: "Active"
     }
   },
   {
@@ -351,6 +435,20 @@ export const qualifiedAccounts: QualifiedAccount[] = [
         {name: "Jean-Denis Greze", title: "CTO", role: "Champion", status: "Found"},
         {title: "Head of Product", role: "User", status: "Missing"}
       ]
+    },
+    properties: {
+      company: {
+        name: "Plaid",
+        url: "https://plaid.com",
+        industry: "Fintech Infrastructure",
+        employees: 1500,
+        about: "Plaid is a financial services API that connects applications with users' bank accounts, enabling seamless financial transactions."
+      }
+    },
+    companies_enrichment: {
+      icp_fit_score: 93,
+      intent_score: 89,
+      status: "Active"
     }
   },
   {
@@ -398,6 +496,20 @@ export const qualifiedAccounts: QualifiedAccount[] = [
         {title: "VP Engineering", role: "Champion", status: "Missing"},
         {name: "Alex Chen", title: "Product Manager", role: "User", status: "Found"}
       ]
+    },
+    properties: {
+      company: {
+        name: "Loom",
+        url: "https://loom.com",
+        industry: "Communication",
+        employees: 400,
+        about: "Loom is a video messaging platform that helps users create and share video messages for better communication."
+      }
+    },
+    companies_enrichment: {
+      icp_fit_score: 87,
+      intent_score: 76,
+      status: "Active"
     }
   },
   {
@@ -445,6 +557,20 @@ export const qualifiedAccounts: QualifiedAccount[] = [
         {title: "CTO", role: "Champion", status: "Missing"},
         {name: "Lisa Rodriguez", title: "VP Product", role: "User", status: "Found"}
       ]
+    },
+    properties: {
+      company: {
+        name: "Greenhouse",
+        url: "https://greenhouse.io",
+        industry: "HR Tech",
+        employees: 1100,
+        about: "Greenhouse Software is a recruiting platform that helps companies optimize their hiring processes and improve candidate experience."
+      }
+    },
+    companies_enrichment: {
+      icp_fit_score: 84,
+      intent_score: 81,
+      status: "Active"
     }
   },
   {
@@ -493,6 +619,20 @@ export const qualifiedAccounts: QualifiedAccount[] = [
         {title: "VP Engineering", role: "Champion", status: "Missing"},
         {name: "Michael Park", title: "Head of Product", role: "User", status: "Found"}
       ]
+    },
+    properties: {
+      company: {
+        name: "Mixpanel",
+        url: "https://mixpanel.com",
+        industry: "Analytics",
+        employees: 450,
+        about: "Mixpanel is a product analytics tool that helps teams understand how users interact with their web and mobile applications."
+      }
+    },
+    companies_enrichment: {
+      icp_fit_score: 89,
+      intent_score: 85,
+      status: "Active"
     }
   },
   {
@@ -543,6 +683,20 @@ export const qualifiedAccounts: QualifiedAccount[] = [
         {name: "Curtis Liu", title: "CTO", role: "Champion", status: "Found"},
         {title: "VP Product Analytics", role: "User", status: "Missing"}
       ]
+    },
+    properties: {
+      company: {
+        name: "Amplitude",
+        url: "https://amplitude.com",
+        industry: "Analytics",
+        employees: 900,
+        about: "Amplitude is a digital analytics platform that helps businesses optimize their product through data-driven insights."
+      }
+    },
+    companies_enrichment: {
+      icp_fit_score: 91,
+      intent_score: 88,
+      status: "Active"
     }
   }
 ];
