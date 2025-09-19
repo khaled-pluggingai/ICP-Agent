@@ -41,6 +41,7 @@ import { QualifiedAccount } from "@/lib/icp-mocks"
 import { SummaryEnrichmentPopup } from "./SummaryEnrichmentPopup"
 import { useExaCompanies } from "@/hooks/useExaCompanies"
 import { useProspects } from "@/hooks/useProspects"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 type ViewMode = 'comfortable' | 'compact'
 
@@ -69,6 +70,7 @@ export function QualifiedAccounts() {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(true); // Keep dropdown open by default
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const filteredAccounts = useMemo(() => {
     return accounts.filter(account => {
@@ -198,12 +200,15 @@ export function QualifiedAccounts() {
 
   const handleSendToClay = async () => {
     try {
-      const response = await fetch(webhookUrl, {
+      // Prepare the payload with the webhookUrl and filteredAccounts data
+      const payload = { webhookUrl, data: filteredAccounts };
+      // Use the backend proxy endpoint instead of direct call
+      const response = await fetch("http://localhost:3001/api/send-to-clay", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email: "john@stripe.com" }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -269,6 +274,39 @@ export function QualifiedAccounts() {
             Export CSV
           </Button>
           
+          <Button
+            className="bg-emerald-500 hover:bg-emerald-600 text-black font-semibold shadow-lg shadow-emerald-500/20 gap-2"
+            size="sm"
+            onClick={() => setIsModalOpen(true)}
+          >
+            Send to Clay
+          </Button>
+
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogContent aria-describedby="dialog-description">
+              <DialogHeader>
+                <DialogTitle>Send Data to Clay</DialogTitle>
+              </DialogHeader>
+              <p id="dialog-description" className="sr-only">Enter the webhook URL to forward data to Clay and then click Send Data</p>
+              <div className="space-y-4">
+                <Input
+                  type="text"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  placeholder="Enter webhook URL"
+                  className="webhook-input"
+                />
+                {errorMessage && <p className="text-red-500 text-sm">{errorMessage}</p>}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                <Button onClick={handleSendToClay} className="send-data-button">
+                  Send Data
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <div className="flex items-center border rounded-lg p-1">
             <Button
               variant={viewMode === 'comfortable' ? 'secondary' : 'ghost'}
@@ -287,36 +325,6 @@ export function QualifiedAccounts() {
               <List className="w-4 h-4" />
             </Button>
           </div>
-
-          {/* Send to Clay Button */}
-          <DropdownMenu open={dropdownOpen} onOpenChange={(isOpen) => setDropdownOpen(isOpen)}>
-            <DropdownMenuTrigger>
-              <Button className="send-to-clay-button beautiful-button" size="sm">
-                Send to Clay
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="popup-content" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuItem>
-                <Input
-                  type="text"
-                  value={webhookUrl}
-                  onChange={(e) => setWebhookUrl(e.target.value)}
-                  placeholder="Enter webhook URL"
-                  className="webhook-input"
-                />
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Button onClick={handleSendToClay} className="send-data-button">
-                  Send Data
-                </Button>
-              </DropdownMenuItem>
-              {errorMessage && (
-                <DropdownMenuItem className="error-message">
-                  <span>{errorMessage}</span>
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </motion.div>
 
