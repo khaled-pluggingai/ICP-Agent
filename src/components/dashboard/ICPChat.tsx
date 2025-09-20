@@ -20,14 +20,9 @@ interface SearchResult {
   company_name: string
   company_linkedin: string
   company_website: string
+  created_at?: string // ISO timestamp when company was added
 }
 
-interface ProcessingStage {
-  id: string
-  message: string
-  completed: boolean
-  timestamp: Date
-}
 
 export function ICPChat() {
   const [messages, setMessages] = useState<Message[]>([
@@ -50,119 +45,204 @@ export function ICPChat() {
   ])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [isSearching, setIsSearching] = useState(false)
-  const [sessionId, setSessionId] = useState<string>("")
-  const [processingStages, setProcessingStages] = useState<ProcessingStage[]>([])
-  const [currentStage, setCurrentStage] = useState<string>("")
-  const [isPolling, setIsPolling] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
   const [lastError, setLastError] = useState<string>("")
   
-  const abortControllerRef = useRef<AbortController | null>(null)
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
-
-  // Generate sessionId on component mount
-  useEffect(() => {
-    const generateSessionId = () => {
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = Math.random() * 16 | 0;
-        const v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-      });
-    };
-    
-    setSessionId(generateSessionId());
-  }, []);
+  const abortControllerRef = useRef<EventSource | null>(null)
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
+        console.log('🧹 Cleaning up EventSource on unmount');
+        abortControllerRef.current.close();
       }
     };
   }, []);
 
-  const initializeProcessingStages = () => {
-    const stages: ProcessingStage[] = [
-      { id: "analyzing", message: "Analyzing your search criteria...", completed: false, timestamp: new Date() },
-      { id: "searching", message: "Searching our database...", completed: false, timestamp: new Date() },
-      { id: "processing", message: "Processing and validating results...", completed: false, timestamp: new Date() },
-      { id: "compiling", message: "Compiling final results...", completed: false, timestamp: new Date() }
-    ];
-    setProcessingStages(stages);
-    setCurrentStage("analyzing");
-  };
 
-  const updateProcessingStage = (stageId: string) => {
-    setProcessingStages(prev => 
-      prev.map(stage => 
-        stage.id === stageId 
-          ? { ...stage, completed: true, timestamp: new Date() }
-          : stage
-      )
-    );
-    setCurrentStage(stageId);
-  };
+  /**
+   * Sends the user's query to the backend to start the enrichment workflow.
+   * Includes a retry mechanism for improved reliability.
+   * @param {string} userQuery The query entered by the user.
+   * @returns {Promise<boolean>} A promise that resolves to true if the workflow started successfully, false otherwise.
+   */
+  const startWorkflow = async (userQuery: string): Promise<boolean> => {
+    const apiUrl = 'https://web-production-d9ac8.up.railway.app/start-workflow';
+    
+    // Retry logic configuration
+    const retries = 3;
+    let backoff = 1000; // Start with a 1-second delay
 
-  const startPolling = async (query: string, sessionId: string) => {
-    setIsPolling(true);
-    let pollCount = 0;
-    const maxPolls = 30; // 5 minutes with 10-second intervals
-
-    const poll = async () => {
+    for (let i = 0; i < retries; i++) {
       try {
-        pollCount++;
-        const response = await fetch('https://newformtech.app.n8n.cloud/webhook/exa', {
+        const response = await fetch(apiUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            query,
-            timestamp: new Date().toISOString(),
-            sessionId,
-            polling: true,
-            pollCount
-          })
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ query: userQuery }),
         });
 
         if (response.ok) {
           const data = await response.json();
-          
-          if (data.status === 'completed' || data.results || data.output) {
-            setIsPolling(false);
-            if (pollingIntervalRef.current) {
-              clearInterval(pollingIntervalRef.current);
-            }
-            return data;
-          } else if (data.status === 'processing') {
-            // Update processing stage based on poll count
-            const stageIndex = Math.min(Math.floor(pollCount / 7), 3);
-            const stages = ['analyzing', 'searching', 'processing', 'compiling'];
-            updateProcessingStage(stages[stageIndex]);
-          }
+          console.log('Backend confirmation:', data.message);
+          return true; // Success!
+        }
+
+        // If it's a server error (5xx), it's worth retrying.
+        if (response.status >= 500) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+
+        // For other errors (e.g., 4xx), don't retry as it won't help.
+        console.error(`Client-side error: ${response.status}. Aborting.`);
+        return false;
+
+      } catch (error: any) {
+        console.warn(`Attempt ${i + 1} failed: ${error.message}`);
+        if (i === retries - 1) {
+          console.error('Failed to start workflow after all retries.');
+          return false; // All retries failed
+        }
+        // Wait before the next retry
+        await new Promise(res => setTimeout(res, backoff));
+        backoff *= 2; // Double the delay for the next attempt
+      }
+    }
+    return false;
+  };
+
+  /**
+   * Connects to the SSE endpoint to receive and display live progress updates.
+   */
+  const listenForLiveUpdates = () => {
+    const statusUrl = 'https://web-production-d9ac8.up.railway.app/workflow-status';
+    console.log('🔗 Creating EventSource connection to:', statusUrl);
+    
+    const eventSource = new EventSource(statusUrl);
+    console.log('✅ EventSource created:', eventSource);
+    console.log('🔍 EventSource readyState:', eventSource.readyState);
+    console.log('🔍 EventSource url:', eventSource.url);
+
+    // Add connection state logging
+    eventSource.onopen = (event) => {
+      console.log('🚀 SSE connection opened successfully', event);
+      console.log('🔍 EventSource readyState after open:', eventSource.readyState);
+    };
+
+    // This is called for every message received from the server.
+    eventSource.onmessage = (event) => {
+      console.log('📨 Raw SSE data received:', event.data);
+      
+      try {
+        // The data is a JSON string, so we must parse it.
+        const update = JSON.parse(event.data);
+        console.log('✅ Parsed update:', update);
+        
+        // Update the chatbot's state with this new message
+        const updateMessage: Message = {
+          id: Date.now().toString(),
+          content: (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                {update.status === 'complete' && <CheckCircle className="w-4 h-4 text-green-400" />}
+                {update.status === 'processing' && <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />}
+                {update.status === 'searching' && <Globe className="w-4 h-4 text-yellow-400" />}
+                {update.status === 'found' && <Sparkles className="w-4 h-4 text-green-400" />}
+                <span className="text-sm font-medium">{update.message}</span>
+              </div>
+              {update.progress && (
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${update.progress}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          ),
+          role: "assistant",
+          timestamp: new Date()
+        };
+
+        console.log('📝 Adding message to state:', updateMessage);
+        setMessages(prev => {
+          const newMessages = [...prev, updateMessage];
+          console.log('📊 Updated messages array length:', newMessages.length);
+          return newMessages;
+        });
+
+        // Check for the completion message to close the connection.
+        if (update.status === 'complete') {
+          console.log('🏁 Workflow complete, closing SSE connection');
+          eventSource.close();
+          setIsLoading(false); // Stop loading when complete
         }
       } catch (error) {
-        console.error('Polling error:', error);
-      }
-
-      if (pollCount >= maxPolls) {
-        setIsPolling(false);
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-        }
-        throw new Error('Request timed out after 5 minutes');
+        console.error("❌ Error parsing SSE data:", error, "Raw data:", event.data);
+        // Display the raw text if parsing fails
+        const rawMessage: Message = {
+          id: Date.now().toString(),
+          content: `Raw update: ${event.data}`,
+          role: "assistant",
+          timestamp: new Date()
+        };
+        console.log('📝 Adding raw message to state:', rawMessage);
+        setMessages(prev => [...prev, rawMessage]);
       }
     };
 
-    // Start polling
-    pollingIntervalRef.current = setInterval(poll, 10000);
-    return poll(); // Initial poll
+    // This is called if the connection fails.
+    eventSource.onerror = (error) => {
+      console.error('❌ SSE connection failed:', error);
+      console.log('🔍 EventSource readyState:', eventSource.readyState);
+      console.log('🔍 EventSource readyState constants:', {
+        CONNECTING: 0,
+        OPEN: 1,
+        CLOSED: 2
+      });
+      
+      // Try to reconnect after a delay
+      setTimeout(() => {
+        console.log('🔄 Attempting to reconnect SSE...');
+        eventSource.close();
+        const newEventSource = new EventSource(statusUrl);
+        newEventSource.onmessage = eventSource.onmessage;
+        newEventSource.onopen = eventSource.onopen;
+        newEventSource.onerror = eventSource.onerror;
+        abortControllerRef.current = newEventSource as any;
+      }, 3000);
+      
+      setIsLoading(false); // Stop loading on error
+      
+      // Display a persistent error message to the user in the chatbot UI
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        content: (
+          <div className="flex items-center gap-2 text-red-400">
+            <AlertCircle className="w-4 h-4" />
+            <span>Connection to server lost. Attempting to reconnect...</span>
+          </div>
+        ),
+        role: "assistant",
+        timestamp: new Date()
+      };
+      console.log('📝 Adding error message to state:', errorMessage);
+      setMessages(prev => [...prev, errorMessage]);
+    };
+
+    // Return the eventSource object so we can manually close it if needed
+    return eventSource;
   };
 
   const renderSearchResults = (results: SearchResult[]) => {
+    // Add timestamps for companies that don't have them (assume they are newly found)
+    const resultsWithTimestamps = results.map(result => ({
+      ...result,
+      created_at: result.created_at || new Date().toISOString()
+    }));
+
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2 text-green-400">
@@ -170,7 +250,7 @@ export function ICPChat() {
           <span className="font-semibold">Search Results ({results.length} found)</span>
         </div>
         <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-          {results.map((result, index) => (
+          {resultsWithTimestamps.map((result, index) => (
             <CompanyResult key={index} data={result} index={index} />
           ))}
         </div>
@@ -178,65 +258,6 @@ export function ICPChat() {
     )
   }
 
-  const renderProcessingStages = () => {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-green-400 mb-4">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="font-semibold">Processing Your Request</span>
-        </div>
-        <div className="space-y-2">
-          {processingStages.map((stage, index) => (
-            <motion.div
-              key={stage.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.2 }}
-              className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
-                stage.completed 
-                  ? 'bg-green-500/10 border border-green-400/30' 
-                  : stage.id === currentStage
-                  ? 'bg-green-500/20 border border-green-400/50'
-                  : 'bg-gray-500/10 border border-gray-400/20'
-              }`}
-            >
-              <motion.div
-                animate={stage.completed ? { scale: [1, 1.2, 1] } : {}}
-                className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                  stage.completed 
-                    ? 'bg-green-500' 
-                    : stage.id === currentStage
-                    ? 'bg-green-500/50'
-                    : 'bg-gray-500/30'
-                }`}
-              >
-                {stage.completed ? (
-                  <CheckCircle className="w-4 h-4 text-white" />
-                ) : stage.id === currentStage ? (
-                  <Loader2 className="w-4 h-4 text-white animate-spin" />
-                ) : (
-                  <div className="w-2 h-2 bg-white/50 rounded-full" />
-                )}
-              </motion.div>
-              <span className={`text-sm ${
-                stage.completed 
-                  ? 'text-green-400' 
-                  : stage.id === currentStage
-                  ? 'text-green-300'
-                  : 'text-gray-400'
-              }`}>
-                {stage.message}
-              </span>
-            </motion.div>
-          ))}
-        </div>
-        <div className="text-xs text-green-400/70 mt-3 flex items-center gap-2">
-          <Zap className="w-3 h-3" />
-          This may take up to 5 minutes for complex searches
-        </div>
-      </div>
-    );
-  };
 
   const handleSend = async () => {
     if (!input.trim()) return
@@ -255,118 +276,49 @@ export function ICPChat() {
     setLastError("")
     setRetryCount(0)
 
-    // Initialize processing stages
-    initializeProcessingStages()
-
-    // Add processing message to chat
-    const processingMessage: Message = {
+    // Add initial confirmation message
+    const confirmationMessage: Message = {
       id: (Date.now() + 1).toString(),
-      content: renderProcessingStages(),
+      content: (
+        <div className="flex items-center gap-2 text-green-400">
+          <Sparkles className="w-4 h-4" />
+          <span>Got it! Starting my search...</span>
+        </div>
+      ),
       role: "assistant",
       timestamp: new Date()
     }
-    setMessages(prev => [...prev, processingMessage])
+    setMessages(prev => [...prev, confirmationMessage])
 
     try {
-      // Create abort controller with 5-minute timeout
-      abortControllerRef.current = new AbortController()
-      const timeoutId = setTimeout(() => {
-        abortControllerRef.current?.abort()
-      }, 5 * 60 * 1000) // 5 minutes
-
-      const response = await fetch('https://newformtech.app.n8n.cloud/webhook/exa', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: currentInput,
-          timestamp: new Date().toISOString(),
-          sessionId: sessionId
-        }),
-        signal: abortControllerRef.current.signal
-      })
-
-      clearTimeout(timeoutId)
-
-      if (response.ok) {
-        const data = await response.json()
-        
-        // Remove processing message and add actual response
-        setMessages(prev => prev.slice(0, -1))
-        
-        // Create response message based on the webhook response
-        let responseContent: React.ReactNode
-        
-        if (data.output) {
-          responseContent = data.output
-        } else if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-          responseContent = renderSearchResults(data.results)
-        } else if (data.message) {
-          responseContent = data.message
-        } else if (data.text) {
-          responseContent = data.text
-        } else if (data.content) {
-          responseContent = data.content
-        } else {
-          responseContent = typeof data === 'string' ? data : JSON.stringify(data)
-        }
-
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          content: responseContent,
-          role: "assistant",
-          timestamp: new Date()
-        }
-        
-        setMessages(prev => [...prev, assistantMessage])
-      } else {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-    } catch (error: any) {
-      // Remove processing message
-      setMessages(prev => prev.slice(0, -1))
+      // Step 1: Start the workflow
+      console.log('🚀 Starting workflow for query:', currentInput);
+      const workflowStarted = await startWorkflow(currentInput)
       
+      if (!workflowStarted) {
+        throw new Error('Failed to start workflow after all retries')
+      }
+
+      console.log('✅ Workflow started successfully, now listening for updates...');
+      
+      // Step 2: Start listening for live updates (ALWAYS call this)
+      const eventSource = listenForLiveUpdates()
+      
+      // Store the event source for cleanup
+      abortControllerRef.current = eventSource as any
+
+    } catch (error: any) {
       let errorContent: React.ReactNode
       
-      if (error.name === 'AbortError') {
-        // Timeout occurred, try polling as fallback
-        setLastError("Request timed out, switching to polling mode...")
-        
-        try {
-          const pollData = await startPolling(currentInput, sessionId)
-          
-          // Create response message from polling data
-          let responseContent: React.ReactNode
-          
-          if (pollData.output) {
-            responseContent = pollData.output
-          } else if (pollData.results && Array.isArray(pollData.results) && pollData.results.length > 0) {
-            responseContent = renderSearchResults(pollData.results)
-          } else if (pollData.message) {
-            responseContent = pollData.message
-          } else {
-            responseContent = typeof pollData === 'string' ? pollData : JSON.stringify(pollData)
-          }
-
-          const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            content: responseContent,
-            role: "assistant",
-            timestamp: new Date()
-          }
-          
-          setMessages(prev => [...prev, assistantMessage])
-          return
-        } catch (pollError) {
+      if (error.message.includes('Failed to start workflow')) {
           errorContent = (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-red-400">
                 <AlertCircle className="w-4 h-4" />
-                <span className="font-semibold">Request Timeout</span>
+              <span className="font-semibold">Workflow Start Failed</span>
               </div>
               <p className="text-sm text-foreground/80">
-                Your request took longer than 5 minutes to process. This can happen with complex searches.
+              Unable to start the workflow. The service may be temporarily unavailable.
               </p>
               <div className="flex gap-2">
                 <Button
@@ -383,7 +335,6 @@ export function ICPChat() {
               </div>
             </div>
           )
-        }
       } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
         errorContent = (
           <div className="space-y-3">
@@ -446,20 +397,13 @@ export function ICPChat() {
         timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMessage])
+      setIsLoading(false) // Stop loading on error
     } finally {
-      setIsLoading(false)
-      setIsPolling(false)
-      setProcessingStages([])
-      setCurrentStage("")
+      // Don't set isLoading to false here - let the SSE handlers manage it
+      // setIsLoading(false) // This was causing the loading to stop immediately
       
-      // Clean up
-      if (abortControllerRef.current) {
-        abortControllerRef.current = null
-      }
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current)
-        pollingIntervalRef.current = null
-      }
+      // Note: Cleanup is handled in the error handlers and completion handlers
+      // The EventSource will be closed when the workflow completes or errors occur
     }
   }
 
@@ -469,6 +413,7 @@ export function ICPChat() {
       handleSend()
     }
   }
+
 
   return (
     <motion.div
@@ -651,7 +596,7 @@ export function ICPChat() {
               </AnimatePresence>
               
               {/* Enhanced typing indicator */}
-              {isLoading && !isPolling && (
+              {isLoading && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -694,58 +639,7 @@ export function ICPChat() {
                         className="w-2 h-2 bg-green-400 rounded-full"
                       />
                       <span className="text-xs text-green-400 ml-2">
-                        {currentStage ? `AI is ${currentStage}...` : "AI is thinking..."}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Polling indicator */}
-              {isPolling && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="flex gap-4 justify-start"
-                >
-                  <motion.div 
-                     animate={{ 
-                       boxShadow: [
-                         "0 0 20px hsl(140 100% 50% / 0.3)",
-                         "0 0 30px hsl(140 100% 50% / 0.6)",
-                         "0 0 20px hsl(140 100% 50% / 0.3)"
-                       ]
-                     }}
-                     transition={{ duration: 1.5, repeat: Infinity }}
-                     className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center"
-                  >
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    >
-                      <RefreshCw className="w-5 h-5 text-white" />
-                    </motion.div>
-                  </motion.div>
-                  <div className="bg-gradient-to-br from-emerald-500/10 to-green-600/10 border border-emerald-400/30 p-4 rounded-2xl backdrop-blur-md">
-                    <div className="flex gap-2 items-center">
-                      <motion.div
-                        animate={{ scale: [1, 1.2, 1] }}
-                        transition={{ duration: 0.8, repeat: Infinity }}
-                        className="w-2 h-2 bg-emerald-400 rounded-full"
-                      />
-                      <motion.div
-                        animate={{ scale: [1, 1.2, 1] }}
-                        transition={{ duration: 0.8, repeat: Infinity, delay: 0.3 }}
-                        className="w-2 h-2 bg-emerald-400 rounded-full"
-                      />
-                      <motion.div
-                        animate={{ scale: [1, 1.2, 1] }}
-                        transition={{ duration: 0.8, repeat: Infinity, delay: 0.6 }}
-                        className="w-2 h-2 bg-emerald-400 rounded-full"
-                      />
-                      <span className="text-xs text-emerald-400 ml-2">
-                        Polling for results... ({currentStage || "processing"})
+                        AI is connecting to live updates...
                       </span>
                     </div>
                   </div>

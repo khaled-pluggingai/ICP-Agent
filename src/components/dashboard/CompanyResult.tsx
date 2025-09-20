@@ -11,6 +11,7 @@ interface CompanyData {
   company_name: string;
   company_linkedin: string;
   company_website: string;
+  created_at?: string; // ISO timestamp when company was added
 }
 
 interface CompanyResultProps {
@@ -24,6 +25,16 @@ const CompanyResult: React.FC<CompanyResultProps> = ({ data, index = 0 }) => {
       const fullUrl = url.startsWith('http') ? url : `https://${url}`;
       window.open(fullUrl, '_blank', 'noopener,noreferrer');
     }
+  };
+
+  // Check if company was added in the last hour
+  const isNewCompany = () => {
+    if (!data.created_at) return false;
+    
+    const createdAt = new Date(data.created_at);
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000); // 1 hour ago
+    
+    return createdAt > oneHourAgo;
   };
 
   return (
@@ -45,6 +56,17 @@ const CompanyResult: React.FC<CompanyResultProps> = ({ data, index = 0 }) => {
               <div className="flex items-center space-x-2">
                 <Building2 className="w-5 h-5 text-green-400" />
                 <h3 className="text-lg font-semibold text-foreground">{data.company_name}</h3>
+                {isNewCompany() && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: index * 0.1 + 0.5 }}
+                  >
+                    <Badge className="bg-orange-500/20 text-orange-400 border-orange-400/30 text-xs px-2 py-1 animate-pulse">
+                      NEW
+                    </Badge>
+                  </motion.div>
+                )}
               </div>
               <div className="flex items-center space-x-2 text-muted-foreground">
                 <MapPin className="w-4 h-4" />
