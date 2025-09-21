@@ -14,6 +14,8 @@ export interface NavOption {
 
 const NAV_OPTIONS: NavOption[] = [
   { id: "nav-qualified", value: "/dashboard/qualified-accounts", label: "Qualified Accounts" },
+  { id: "nav-decision-makers", value: "/dashboard/decision-makers", label: "Decision Makers" },
+  { id: "nav-company-events", value: "/dashboard/company-events", label: "Company Events" },
   { id: "nav-analytics", value: "/dashboard/analytics", label: "Analytics Overview" },
   { id: "nav-segments", value: "/dashboard/segments", label: "Segments" },
   { id: "nav-insights", value: "/dashboard/pipeline-insights", label: "Pipeline Insights" },

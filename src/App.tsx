@@ -13,6 +13,8 @@ import PipelineInsightsPage from "./pages/dashboard/PipelineInsights";
 import ICPTrainerPage from "./pages/dashboard/ICPTrainer";
 import AutomationSchedulerPage from "./pages/dashboard/AutomationScheduler";
 import LiveMonitorPage from "./pages/dashboard/LiveMonitor";
+import DecisionMakersPage from "./pages/dashboard/DecisionMakers";
+import CompanyEventsPage from "./pages/dashboard/CompanyEvents";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +33,8 @@ const App = () => (
               <Route path="qualified-accounts" element={<QualifiedAccountsPage />} />
               <Route path="analytics" element={<AnalyticsPage />} />
               <Route path="segments" element={<SegmentsPage />} />
+              <Route path="decision-makers" element={<DecisionMakersPage />} />
+              <Route path="company-events" element={<CompanyEventsPage />} />
               <Route path="pipeline-insights" element={<PipelineInsightsPage />} />
               <Route path="icp-trainer" element={<ICPTrainerPage />} />
               <Route path="automation-scheduler" element={<AutomationSchedulerPage />} />

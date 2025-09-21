@@ -73,13 +73,26 @@ export function QualifiedAccounts() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const filteredAccounts = useMemo(() => {
-    return accounts.filter(account => {
-      const matchesSearch = searchQuery === "" || account.properties?.company?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    const filtered = accounts.filter(account => {
+      const matchesSearch = searchQuery === "" || 
+        account.properties?.company?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        account.domain?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesTier = tierFilter === "all" || account.tier === tierFilter;
       const matchesIndustry = industryFilter === "all" || account.properties?.company?.industry === industryFilter;
-      return matchesSearch && matchesTier && matchesIndustry;
+      const matchesFitScore = account.fit_score >= minFitScore;
+      const matchesIntentScore = account.intent_score >= minIntentScore;
+      
+      return matchesSearch && matchesTier && matchesIndustry && matchesFitScore && matchesIntentScore;
     });
-  }, [accounts, searchQuery, tierFilter, industryFilter]);
+    
+    console.log('Filtering accounts:', {
+      totalAccounts: accounts.length,
+      filteredCount: filtered.length,
+      filters: { searchQuery, tierFilter, industryFilter, minFitScore, minIntentScore }
+    });
+    
+    return filtered;
+  }, [accounts, searchQuery, tierFilter, industryFilter, minFitScore, minIntentScore]);
 
   const handleViewSummary = (account: QualifiedAccount) => {
     setSelectedAccount(account)
@@ -196,7 +209,7 @@ export function QualifiedAccounts() {
     }
   }
 
-  const industries = Array.from(new Set(accounts.map(a => a.industry)))
+  const industries = Array.from(new Set(accounts.map(a => a.properties?.company?.industry).filter(Boolean)))
 
   const handleSendToClay = async () => {
     try {
@@ -222,66 +235,6 @@ export function QualifiedAccounts() {
     }
   };
 
-  // Add the new backend integration for the chatbot
-
-  const startWorkflow = async (userQuery: string) => {
-    const apiUrl = 'https://web-production-d9ac8.up.railway.app/start-workflow';
-
-    try {
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query: userQuery }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log(data.message); // Log: "Workflow started successfully..."
-
-      // Proceed to listen for live updates
-      listenForLiveUpdates();
-    } catch (error) {
-      console.error('Error starting the workflow:', error);
-      // Display an error message to the user
-      setErrorMessage('Failed to start the workflow. Please try again.');
-    }
-  };
-
-  const listenForLiveUpdates = () => {
-    const statusUrl = 'https://web-production-d9ac8.up.railway.app/workflow-status';
-    const eventSource = new EventSource(statusUrl);
-
-    eventSource.onmessage = (event) => {
-      const logMessage = event.data;
-
-      // Display the log message in the chatbot interface
-      console.log(logMessage);
-
-      if (logMessage.includes('✅ Workflow finished')) {
-        eventSource.close();
-        console.log('Live update stream closed. Workflow is complete.');
-        // Display a final "Done!" message to the user
-      }
-    };
-
-    eventSource.onerror = (error) => {
-      console.error('SSE connection error:', error);
-      eventSource.close();
-      // Display a connection error message to the user
-      setErrorMessage('Connection error. Unable to receive updates.');
-    };
-  };
-
-  // Example usage: Trigger the workflow when a button is clicked
-  const handleChatbotQuery = (query: string) => {
-    setErrorMessage(''); // Clear any previous error messages
-    startWorkflow(query);
-  };
 
   if (loading) {
     return (

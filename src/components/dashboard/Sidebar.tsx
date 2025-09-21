@@ -1,11 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { BarChart3, Brain, Users, Target, TrendingUp, Building2, Activity, Calendar } from "lucide-react"
+import { BarChart3, Brain, Users, Target, TrendingUp, Building2, Activity, Calendar, UserCheck } from "lucide-react"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 
-type Section = "overview" | "accounts" | "segments" | "insights" | "trainer" | "automation"
+type Section = "overview" | "accounts" | "segments" | "insights" | "trainer" | "automation" | "decision-makers"
 
 interface DashboardSidebarProps {
   activeSection: Section
@@ -14,6 +14,7 @@ interface DashboardSidebarProps {
 
 const navigationItems = [
   { id: "accounts" as const, label: "Qualified Accounts", icon: Building2 },
+  { id: "decision-makers" as const, label: "Decision Makers", icon: UserCheck },
   { id: "overview" as const, label: "Analytics Overview", icon: BarChart3 },
   { id: "segments" as const, label: "Segments", icon: Users },
   { id: "insights" as const, label: "Pipeline Insights", icon: TrendingUp },

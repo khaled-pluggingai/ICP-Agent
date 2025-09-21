@@ -129,16 +129,89 @@ export function ICPChat() {
     eventSource.onopen = (event) => {
       console.log('🚀 SSE connection opened successfully', event);
       console.log('🔍 EventSource readyState after open:', eventSource.readyState);
+      
+      // Add a connection success message to the chat
+      const connectionMessage: Message = {
+        id: Date.now().toString(),
+        content: (
+          <div className="flex items-center gap-2 text-green-400">
+            <CheckCircle className="w-4 h-4" />
+            <span>Connected to live updates! Listening for progress...</span>
+          </div>
+        ),
+        role: "assistant",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, connectionMessage]);
+      
+      // Add a timeout to check if we're receiving messages
+      setTimeout(() => {
+        const timeoutMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: (
+            <div className="flex items-center gap-2 text-orange-400">
+              <AlertCircle className="w-4 h-4" />
+              <span>DEBUG: 5 seconds passed, checking if SSE messages are being received...</span>
+            </div>
+          ),
+          role: "assistant",
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, timeoutMessage]);
+      }, 5000);
     };
 
     // This is called for every message received from the server.
     eventSource.onmessage = (event) => {
       console.log('📨 Raw SSE data received:', event.data);
+      console.log('📨 Event type:', event.type);
+      console.log('📨 Event origin:', event.origin);
+      console.log('📨 Event lastEventId:', event.lastEventId);
+      
+      // Add a debug message to show we're receiving data
+      const debugMessage: Message = {
+        id: Date.now().toString(),
+        content: (
+          <div className="flex items-center gap-2 text-yellow-400">
+            <AlertCircle className="w-4 h-4" />
+            <span>DEBUG: Received SSE data: {event.data.substring(0, 100)}...</span>
+          </div>
+        ),
+        role: "assistant",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, debugMessage]);
       
       try {
-        // The data is a JSON string, so we must parse it.
-        const update = JSON.parse(event.data);
-        console.log('✅ Parsed update:', update);
+        // Try to parse as JSON first
+        let update;
+        try {
+          update = JSON.parse(event.data);
+          console.log('✅ Parsed JSON update:', update);
+        } catch (jsonError) {
+          // If not JSON, treat as plain log message
+          console.log('📝 Plain log message:', event.data);
+          
+          // Extract status and message from log format
+          let status = 'processing';
+          let message = event.data;
+          let progress = null;
+          
+          // Parse log message format: "2025-09-20 16:38:32,414 - INFO - {"status": "found", "message": "Great! Found 2 companies. Starting analysis..."}"
+          const jsonMatch = event.data.match(/\{.*\}/);
+          if (jsonMatch) {
+            try {
+              const parsedLog = JSON.parse(jsonMatch[0]);
+              status = parsedLog.status || 'processing';
+              message = parsedLog.message || event.data;
+              progress = parsedLog.progress || null;
+            } catch (e) {
+              // Keep original message if parsing fails
+            }
+          }
+          
+          update = { status, message, progress };
+        }
         
         // Update the chatbot's state with this new message
         const updateMessage: Message = {
@@ -150,6 +223,9 @@ export function ICPChat() {
                 {update.status === 'processing' && <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />}
                 {update.status === 'searching' && <Globe className="w-4 h-4 text-yellow-400" />}
                 {update.status === 'found' && <Sparkles className="w-4 h-4 text-green-400" />}
+                {update.status === 'warning' && <AlertCircle className="w-4 h-4 text-yellow-400" />}
+                {update.status === 'error' && <AlertCircle className="w-4 h-4 text-red-400" />}
+                {update.status === 'skipped' && <AlertCircle className="w-4 h-4 text-orange-400" />}
                 <span className="text-sm font-medium">{update.message}</span>
               </div>
               {update.progress && (
@@ -174,17 +250,24 @@ export function ICPChat() {
         });
 
         // Check for the completion message to close the connection.
-        if (update.status === 'complete') {
+        if (update.status === 'complete' || update.message.includes('✅ Workflow finished')) {
           console.log('🏁 Workflow complete, closing SSE connection');
           eventSource.close();
           setIsLoading(false); // Stop loading when complete
         }
       } catch (error) {
-        console.error("❌ Error parsing SSE data:", error, "Raw data:", event.data);
-        // Display the raw text if parsing fails
+        console.error("❌ Error processing SSE data:", error, "Raw data:", event.data);
+        // Display the raw text if all parsing fails
         const rawMessage: Message = {
           id: Date.now().toString(),
-          content: `Raw update: ${event.data}`,
+          content: (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-gray-400" />
+                <span className="text-sm font-medium">Raw update: {event.data}</span>
+              </div>
+            </div>
+          ),
           role: "assistant",
           timestamp: new Date()
         };
@@ -203,6 +286,20 @@ export function ICPChat() {
         CLOSED: 2
       });
       
+      // Add error message to chat
+      const connectionErrorMessage: Message = {
+        id: Date.now().toString(),
+        content: (
+          <div className="flex items-center gap-2 text-red-400">
+            <AlertCircle className="w-4 h-4" />
+            <span>Connection error. Retrying...</span>
+          </div>
+        ),
+        role: "assistant",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, connectionErrorMessage]);
+      
       // Try to reconnect after a delay
       setTimeout(() => {
         console.log('🔄 Attempting to reconnect SSE...');
@@ -217,7 +314,7 @@ export function ICPChat() {
       setIsLoading(false); // Stop loading on error
       
       // Display a persistent error message to the user in the chatbot UI
-      const errorMessage: Message = {
+      const sseErrorMessage: Message = {
         id: Date.now().toString(),
         content: (
           <div className="flex items-center gap-2 text-red-400">
@@ -228,8 +325,8 @@ export function ICPChat() {
         role: "assistant",
         timestamp: new Date()
       };
-      console.log('📝 Adding error message to state:', errorMessage);
-      setMessages(prev => [...prev, errorMessage]);
+      console.log('📝 Adding error message to state:', sseErrorMessage);
+      setMessages(prev => [...prev, sseErrorMessage]);
     };
 
     // Return the eventSource object so we can manually close it if needed
@@ -390,13 +487,13 @@ export function ICPChat() {
         )
       }
 
-      const errorMessage: Message = {
+      const handleErrorMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: errorContent,
         role: "assistant",
         timestamp: new Date()
       }
-      setMessages(prev => [...prev, errorMessage])
+      setMessages(prev => [...prev, handleErrorMessage])
       setIsLoading(false) // Stop loading on error
     } finally {
       // Don't set isLoading to false here - let the SSE handlers manage it

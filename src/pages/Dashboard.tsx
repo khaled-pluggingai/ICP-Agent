@@ -13,9 +13,10 @@ import { LeadScoring } from "@/components/dashboard/LeadScoring"
 import { PipelineInsights } from "@/components/dashboard/PipelineInsights"
 import { QualifiedAccounts } from "@/components/dashboard/QualifiedAccounts"
 import { AutomationScheduler } from "./dashboard/AutomationScheduler"
+import DecisionMakers from "./dashboard/DecisionMakers"
 
 const Dashboard = () => {
-  const [activeSection, setActiveSection] = useState<"overview" | "accounts" | "segments" | "insights" | "trainer" | "automation">("overview")
+  const [activeSection, setActiveSection] = useState<"overview" | "accounts" | "segments" | "insights" | "trainer" | "automation" | "decision-makers">("overview")
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -74,6 +75,7 @@ const Dashboard = () => {
             {activeSection === "accounts" && <QualifiedAccounts />}
             {activeSection === "overview" && <AnalyticsOverview />}
             {activeSection === "segments" && <SegmentsTable />}
+            {activeSection === "decision-makers" && <DecisionMakers />}
             {activeSection === "insights" && <PipelineInsights />}
             {activeSection === "trainer" && <ICPTrainer />}
             {activeSection === "automation" && <AutomationScheduler />}
