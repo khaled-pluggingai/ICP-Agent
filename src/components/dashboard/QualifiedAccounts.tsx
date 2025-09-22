@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import { motion } from "framer-motion"
 import { 
   Search, 
@@ -15,7 +15,10 @@ import {
   Users,
   Play,
   Target,
-  Loader2
+  Loader2,
+  Zap,
+  CheckCircle,
+  AlertCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -39,8 +42,9 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { QualifiedAccount } from "@/lib/icp-mocks"
 import { SummaryEnrichmentPopup } from "./SummaryEnrichmentPopup"
-import { useExaCompanies } from "@/hooks/useExaCompanies"
+import { supabase } from "@/integrations/supabase/client"
 import { useProspects } from "@/hooks/useProspects"
+import { useExaCompanies } from "@/hooks/useExaCompanies"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 type ViewMode = 'comfortable' | 'compact'
@@ -67,10 +71,10 @@ export function QualifiedAccounts() {
   const [minIntentScore, setMinIntentScore] = useState<number>(0);
   const [viewMode, setViewMode] = useState<ViewMode>('comfortable');
   const [selectedAccount, setSelectedAccount] = useState<QualifiedAccount | null>(null);
-  const [webhookUrl, setWebhookUrl] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isActivating, setIsActivating] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(true); // Keep dropdown open by default
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const filteredAccounts = useMemo(() => {
     const filtered = accounts.filter(account => {
@@ -211,12 +215,52 @@ export function QualifiedAccounts() {
 
   const industries = Array.from(new Set(accounts.map(a => a.properties?.company?.industry).filter(Boolean)))
 
-  const handleSendToClay = async () => {
+  // Auto-dismiss messages after 5 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(""), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [successMessage])
+
+  useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => setErrorMessage(""), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [errorMessage])
+
+  const handleActivate = async () => {
     try {
-      // Prepare the payload with the webhookUrl and filteredAccounts data
-      const payload = { webhookUrl, data: filteredAccounts };
-      // Use the backend proxy endpoint instead of direct call
-      const response = await fetch("http://localhost:3001/api/send-to-clay", {
+      setIsActivating(true);
+      setErrorMessage("");
+      setSuccessMessage("");
+
+      // Fetch the latest webhook URL from the integrations table
+      const { data: integrations, error: integrationsError } = await supabase
+        .from('integrations' as any)
+        .select('clay_webhook')
+        .order('created_date', { ascending: false })
+        .limit(1);
+
+      if (integrationsError) {
+        throw new Error(`Failed to fetch webhook URL: ${integrationsError.message}`);
+      }
+
+      if (!integrations || integrations.length === 0) {
+        throw new Error("No webhook URL found. Please add an integration first.");
+      }
+
+      const latestWebhookUrl = (integrations as any)[0].clay_webhook;
+
+      // Prepare the payload with companies data and webhook URL
+      const payload = {
+        companies: filteredAccounts,
+        clay_webhook: latestWebhookUrl
+      };
+
+      // Send to n8n webhook via proxy
+      const response = await fetch("http://localhost:3001/api/activate-companies", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -228,10 +272,12 @@ export function QualifiedAccounts() {
         throw new Error(`Failed to send data: ${response.statusText}`);
       }
 
-      alert("Data sent successfully to Clay!");
+      setSuccessMessage(`Successfully activated ${filteredAccounts.length} companies!`);
     } catch (error) {
-      console.error("Error sending data to Clay:", error);
-      setErrorMessage(error.message || "An unknown error occurred.");
+      console.error("Error activating companies:", error);
+      setErrorMessage(error instanceof Error ? error.message : "An unknown error occurred.");
+    } finally {
+      setIsActivating(false);
     }
   };
 
@@ -291,35 +337,21 @@ export function QualifiedAccounts() {
           <Button
             className="bg-emerald-500 hover:bg-emerald-600 text-black font-semibold shadow-lg shadow-emerald-500/20 gap-2"
             size="sm"
-            onClick={() => setIsModalOpen(true)}
+            onClick={handleActivate}
+            disabled={isActivating || filteredAccounts.length === 0}
           >
-            Send to Clay
+            {isActivating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Activating...
+              </>
+            ) : (
+              <>
+                <Zap className="w-4 h-4" />
+                Activate
+              </>
+            )}
           </Button>
-
-          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            <DialogContent aria-describedby="dialog-description">
-              <DialogHeader>
-                <DialogTitle>Send Data to Clay</DialogTitle>
-              </DialogHeader>
-              <p id="dialog-description" className="sr-only">Enter the webhook URL to forward data to Clay and then click Send Data</p>
-              <div className="space-y-4">
-                <Input
-                  type="text"
-                  value={webhookUrl}
-                  onChange={(e) => setWebhookUrl(e.target.value)}
-                  placeholder="Enter webhook URL"
-                  className="webhook-input"
-                />
-                {errorMessage && <p className="text-red-500 text-sm">{errorMessage}</p>}
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-                <Button onClick={handleSendToClay} className="send-data-button">
-                  Send Data
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
 
           <div className="flex items-center border rounded-lg p-1">
             <Button
@@ -341,6 +373,29 @@ export function QualifiedAccounts() {
           </div>
         </div>
       </motion.div>
+
+      {/* Success/Error Messages */}
+      {successMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-2 p-4 bg-green-500/10 border border-green-500/30 rounded-lg"
+        >
+          <CheckCircle className="w-5 h-5 text-green-400" />
+          <span className="text-green-400 font-medium">{successMessage}</span>
+        </motion.div>
+      )}
+
+      {errorMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-2 p-4 bg-red-500/10 border border-red-500/30 rounded-lg"
+        >
+          <AlertCircle className="w-5 h-5 text-red-400" />
+          <span className="text-red-400 font-medium">{errorMessage}</span>
+        </motion.div>
+      )}
 
       {/* Filters & Search */}
       <motion.div

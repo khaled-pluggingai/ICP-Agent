@@ -38,6 +38,41 @@ app.post('/api/send-to-clay', async (req, res) => {
   }
 });
 
+// New endpoint for n8n webhook activation
+app.post('/api/activate-companies', async (req, res) => {
+  const { companies, clay_webhook } = req.body;
+
+  if (!companies || !clay_webhook) {
+    return res.status(400).json({ error: 'companies and clay_webhook are required' });
+  }
+
+  try {
+    const payload = {
+      companies,
+      clay_webhook
+    };
+
+    const response = await fetch('https://newformtech.app.n8n.cloud/webhook/send-data-to-n8n', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({ error: errorText });
+    }
+
+    const responseData = await response.json();
+    res.status(200).json(responseData);
+  } catch (error) {
+    console.error('Error in n8n proxy:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Proxy server running on http://localhost:${PORT}`);

@@ -21,6 +21,7 @@ const NAV_OPTIONS: NavOption[] = [
   { id: "nav-insights", value: "/dashboard/pipeline-insights", label: "Pipeline Insights" },
   { id: "nav-trainer", value: "/dashboard/icp-trainer", label: "ICP Trainer" },
   { id: "nav-automation", value: "/dashboard/automation-scheduler", label: "Automation Scheduler" },
+  { id: "nav-integrations", value: "/dashboard/integrations", label: "Integrations" },
   { id: "nav-monitor", value: "/dashboard/live-monitor", label: "Live Monitor" },
 ]
 
