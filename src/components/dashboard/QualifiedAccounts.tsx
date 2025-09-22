@@ -18,7 +18,8 @@ import {
   Loader2,
   Zap,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -62,7 +63,7 @@ const matchColors = {
 }
 
 export function QualifiedAccounts() {
-  const { accounts, loading, error } = useExaCompanies();
+  const { accounts, loading, error, refreshAccounts } = useExaCompanies();
   const { prospects, loading: prospectsLoading, error: prospectsError, fetchProspectsByExaId } = useProspects();
   const [searchQuery, setSearchQuery] = useState("");
   const [tierFilter, setTierFilter] = useState<string>("all");
@@ -75,6 +76,9 @@ export function QualifiedAccounts() {
   const [successMessage, setSuccessMessage] = useState("");
   const [isActivating, setIsActivating] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(true); // Keep dropdown open by default
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState<QualifiedAccount | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredAccounts = useMemo(() => {
     const filtered = accounts.filter(account => {
@@ -279,6 +283,58 @@ export function QualifiedAccounts() {
     } finally {
       setIsActivating(false);
     }
+  };
+
+  const handleDeleteAccount = (account: QualifiedAccount) => {
+    setAccountToDelete(account);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    if (!accountToDelete) return;
+
+    try {
+      setIsDeleting(true);
+      setErrorMessage("");
+      setSuccessMessage("");
+
+      // Delete from companies_enrichment table first (foreign key constraint)
+      const { error: enrichmentError } = await supabase
+        .from('companies_enrichment')
+        .delete()
+        .eq('exa_company_id', accountToDelete.id);
+
+      if (enrichmentError) {
+        throw new Error(`Failed to delete enrichment data: ${enrichmentError.message}`);
+      }
+
+      // Delete from exa_companies table
+      const { error: companyError } = await supabase
+        .from('exa_companies')
+        .delete()
+        .eq('id', accountToDelete.id);
+
+      if (companyError) {
+        throw new Error(`Failed to delete company: ${companyError.message}`);
+      }
+
+      // Refresh the accounts list to reflect the deletion
+      await refreshAccounts();
+      
+      setSuccessMessage(`Successfully deleted ${accountToDelete.name}`);
+      setDeleteDialogOpen(false);
+      setAccountToDelete(null);
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      setErrorMessage(error instanceof Error ? error.message : "An unknown error occurred.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const cancelDeleteAccount = () => {
+    setDeleteDialogOpen(false);
+    setAccountToDelete(null);
   };
 
 
@@ -637,6 +693,14 @@ export function QualifiedAccounts() {
                               <Play className="w-4 h-4 mr-2" />
                               Start 1:few
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteAccount(account)}
+                              className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete Account
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </td>
@@ -660,6 +724,61 @@ export function QualifiedAccounts() {
           prospectsError={prospectsError}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-400" />
+              Delete Account
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete <strong>{accountToDelete?.name}</strong>? 
+              This action cannot be undone and will permanently remove the account from both the database and UI.
+            </p>
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+              <p className="text-sm text-red-400 font-medium">
+                ⚠️ This will permanently delete:
+              </p>
+              <ul className="text-sm text-red-300 mt-1 ml-4 list-disc">
+                <li>Company data from the database</li>
+                <li>All enrichment data</li>
+                <li>Account from the qualified accounts list</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={cancelDeleteAccount}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmDeleteAccount}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Account
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
