@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Search, Download, ExternalLink, Calendar, Building2, Users, ArrowLeft, Clock, Activity } from "lucide-react"
+import { Search, Download, ExternalLink, Calendar, Building2, Users, ArrowLeft, Clock, Activity, Globe, MapPin, Users2, Calendar as CalendarIcon, Briefcase, FileText, ChevronDown, ChevronRight } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -97,6 +98,7 @@ const CompanyEvents = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
   const [viewMode, setViewMode] = useState<'events' | 'companies'>('events')
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
 
   // Fetch events from Supabase
   useEffect(() => {
@@ -205,7 +207,12 @@ const CompanyEvents = () => {
         const company = companies?.find(c => c.id === event.exa_id)
         console.log(`Matching company for exa_id ${event.exa_id}:`, company)
         return {
-          ...event,
+          event_id: event.event_id,
+          event_name: event.event_name,
+          event_time: event.event_time,
+          data: event.data,
+          business_id: '', // business_id doesn't exist in explorium_events table
+          exa_id: event.exa_id,
           company_info: company ? extractCompanyInfo(company) : undefined
         }
       })
@@ -282,6 +289,27 @@ const CompanyEvents = () => {
   // Format event time
   const formatEventTime = (timeString: string) => {
     return new Date(timeString).toLocaleString()
+  }
+
+  // Toggle collapsible section
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }))
+  }
+
+  // Format JSON data for better display
+  const formatJsonData = (data: any) => {
+    if (!data) return null
+    return JSON.stringify(data, null, 2)
+  }
+
+  // Format company description for better readability
+  const formatDescription = (description: string) => {
+    if (!description) return 'N/A'
+    // Truncate long descriptions and add ellipsis
+    return description.length > 200 ? description.substring(0, 200) + '...' : description
   }
 
   // Get event type color
@@ -481,7 +509,7 @@ const CompanyEvents = () => {
                 <div><strong>Selected Event:</strong> {selectedEvent}</div>
                 <div><strong>Event Details Count:</strong> {eventDetails.length}</div>
                 <div><strong>Companies with Info:</strong> {eventDetails.filter(e => e.company_info).length}</div>
-                <div><strong>Sample Exa IDs:</strong> {eventDetails.slice(0, 3).map(e => e.exa_id).join(', ')}</div>
+                {/* <div><strong>Sample Exa IDs:</strong> {eventDetails.slice(0, 3).map(e => e.exa_id).join(', ')}</div> */}
                 <Button 
                   onClick={async () => {
                     const { data, error } = await supabase
@@ -602,62 +630,192 @@ const CompanyEvents = () => {
                                 View Details
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-4xl">
+                            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-gray-900 border-gray-700">
                               <DialogHeader>
-                                <DialogTitle>Company & Event Details</DialogTitle>
+                                <DialogTitle className="flex items-center gap-2 text-white">
+                                  <Building2 className="w-5 h-5 text-[#00D084]" />
+                                  Company & Event Details
+                                </DialogTitle>
                               </DialogHeader>
                               <div className="space-y-6">
-                                {/* Company Information */}
+                                {/* Company Information Card */}
                                 {event.company_info && (
+                                  <Card className="border-gray-700 bg-gray-800/50 backdrop-blur-sm">
+                                    <CardHeader>
+                                      <CardTitle className="flex items-center gap-2 text-[#00D084]">
+                                        <Building2 className="w-5 h-5" />
+                                        Company Information
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-6">
+                                          <div className="flex items-start gap-4">
+                                            <Building2 className="w-5 h-5 text-[#00D084] mt-1" />
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-400 mb-1">Company Name</p>
+                                              <p className="font-semibold text-xl text-white">{event.company_info.name}</p>
+                                            </div>
+                                          </div>
+                                          
+                                          {event.company_info.website && (
+                                            <div className="flex items-start gap-4">
+                                              <Globe className="w-5 h-5 text-[#00D084] mt-1" />
+                                              <div>
+                                                <p className="text-sm font-medium text-gray-400 mb-1">Website</p>
+                                                <a
+                                                  href={event.company_info.website.startsWith('http') ? event.company_info.website : `https://${event.company_info.website}`}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="text-[#00D084] hover:text-green-300 flex items-center gap-2 transition-colors"
+                                                >
+                                                  <ExternalLink className="w-4 h-4" />
+                                                  {event.company_info.website}
+                                                </a>
+                                              </div>
+                                            </div>
+                                          )}
+                                          
+                                          {event.company_info.industry && (
+                                            <div className="flex items-start gap-4">
+                                              <Briefcase className="w-5 h-5 text-[#00D084] mt-1" />
+                                              <div>
+                                                <p className="text-sm font-medium text-gray-400 mb-1">Industry</p>
+                                                <Badge variant="secondary" className="bg-gray-700 text-[#00D084] border-[#00D084]/20">
+                                                  {event.company_info.industry}
+                                                </Badge>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                        
+                                        <div className="space-y-6">
+                                          {event.company_info.location && (
+                                            <div className="flex items-start gap-4">
+                                              <MapPin className="w-5 h-5 text-[#00D084] mt-1" />
+                                              <div>
+                                                <p className="text-sm font-medium text-gray-400 mb-1">Location</p>
+                                                <p className="font-medium text-white">{event.company_info.location}</p>
+                                              </div>
+                                            </div>
+                                          )}
+                                          
+                                          {event.company_info.employee_count && (
+                                            <div className="flex items-start gap-4">
+                                              <Users2 className="w-5 h-5 text-[#00D084] mt-1" />
+                                              <div>
+                                                <p className="text-sm font-medium text-gray-400 mb-1">Employee Count</p>
+                                                <p className="font-medium text-white">{event.company_info.employee_count}</p>
+                                              </div>
+                                            </div>
+                                          )}
+                                          
+                                          {event.company_info.founded_year && (
+                                            <div className="flex items-start gap-4">
+                                              <CalendarIcon className="w-5 h-5 text-[#00D084] mt-1" />
                                   <div>
-                                    <h4 className="font-semibold mb-2">Company Information</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                      <div className="space-y-2">
-                                        <div><strong>Name:</strong> {event.company_info.name}</div>
-                                        <div><strong>Website:</strong> {event.company_info.website || 'N/A'}</div>
-                                        <div><strong>Industry:</strong> {event.company_info.industry || 'N/A'}</div>
-                                        <div><strong>Location:</strong> {event.company_info.location || 'N/A'}</div>
+                                                <p className="text-sm font-medium text-gray-400 mb-1">Founded Year</p>
+                                                <p className="font-medium text-white">{event.company_info.founded_year}</p>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
-                                      <div className="space-y-2">
-                                        <div><strong>Employee Count:</strong> {event.company_info.employee_count || 'N/A'}</div>
-                                        <div><strong>Founded Year:</strong> {event.company_info.founded_year || 'N/A'}</div>
-                                        <div><strong>Company ID:</strong> {event.company_info.id}</div>
-                                        <div><strong>Description:</strong> {event.company_info.description || 'N/A'}</div>
+                                      
+                                      {event.company_info.description && (
+                                        <div className="mt-8 pt-6 border-t border-gray-700">
+                                          <div className="flex items-start gap-4">
+                                            <FileText className="w-5 h-5 text-[#00D084] mt-1" />
+                                            <div className="flex-1">
+                                              <p className="text-sm font-medium text-gray-400 mb-3">Description</p>
+                                              <p className="text-sm text-gray-300 leading-relaxed">
+                                                {formatDescription(event.company_info.description)}
+                                              </p>
                                       </div>
                                     </div>
                                   </div>
+                                      )}
+                                    </CardContent>
+                                  </Card>
                                 )}
 
-                                {/* Event Information */}
-                                <div>
-                                  <h4 className="font-semibold mb-2">Event Information</h4>
-                                  <div className="space-y-2 text-sm">
-                                    <div><strong>Event Name:</strong> {event.event_name}</div>
-                                    <div><strong>Event Time:</strong> {formatEventTime(event.event_time)}</div>
-                                    <div><strong>Business ID:</strong> {event.business_id || 'N/A'}</div>
-                                    <div><strong>Exa ID:</strong> {event.exa_id || 'N/A'}</div>
-                                  </div>
-                                </div>
+                                {/* Event Information Card */}
+                                <Card className="border-gray-700 bg-gray-800/50 backdrop-blur-sm">
+                                  <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-[#00D084]">
+                                      <Activity className="w-5 h-5" />
+                                      Event Information
+                                    </CardTitle>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                      <div className="space-y-6">
+                                        <div className="flex items-start gap-4">
+                                          <Activity className="w-5 h-5 text-[#00D084] mt-1" />
+                                          <div>
+                                            <p className="text-sm font-medium text-gray-400 mb-2">Event Name</p>
+                                            <Badge className={cn("text-white text-sm px-3 py-1", getEventTypeColor(event.event_name))}>
+                                              {event.event_name}
+                                            </Badge>
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="flex items-start gap-4">
+                                          <Clock className="w-5 h-5 text-[#00D084] mt-1" />
+                                          <div>
+                                            <p className="text-sm font-medium text-gray-400 mb-1">Event Time</p>
+                                            <p className="font-medium text-white">{formatEventTime(event.event_time)}</p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      
+                                      {/* <div className="space-y-6">
+                                        <div className="flex items-start gap-4">
+                                          <Building2 className="w-5 h-5 text-[#00D084] mt-1" />
+                                          <div>
+                                            <p className="text-sm font-medium text-gray-400 mb-1">Exa ID</p>
+                                            <p className="font-mono text-sm bg-gray-700 text-gray-300 px-3 py-2 rounded-lg">
+                                              {event.exa_id}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div> */}
+                                    </div>
+                                  </CardContent>
+                                </Card>
 
-                                {/* Event Data */}
-                                {event.data && (
-                                  <div>
-                                    <h4 className="font-semibold mb-2">Event Data</h4>
-                                    <pre className="bg-muted p-4 rounded-lg text-xs overflow-auto max-h-96">
-                                      {JSON.stringify(event.data, null, 2)}
-                                    </pre>
-                                  </div>
-                                )}
+                                {/* Event Data Card */}
+                                {/* {event.data && (
+                                  <Card className="border-gray-700 bg-gray-800/50 backdrop-blur-sm">
+                                    <Collapsible 
+                                      open={expandedSections[`event-data-${event.event_id}`]}
+                                      onOpenChange={() => toggleSection(`event-data-${event.event_id}`)}
+                                    >
+                                      <CollapsibleTrigger asChild>
+                                        <CardHeader className="cursor-pointer hover:bg-gray-700/50 transition-colors">
+                                          <CardTitle className="flex items-center justify-between text-[#00D084]">
+                                            <div className="flex items-center gap-2">
+                                              <FileText className="w-5 h-5" />
+                                              Event Data
+                                            </div>
+                                            {expandedSections[`event-data-${event.event_id}`] ? 
+                                              <ChevronDown className="w-5 h-5" /> : 
+                                              <ChevronRight className="w-5 h-5" />
+                                            }
+                                          </CardTitle>
+                                        </CardHeader>
+                                      </CollapsibleTrigger>
+                                      <CollapsibleContent>
+                                        <CardContent>
+                                          <pre className="bg-gray-900 text-[#00D084] p-6 rounded-lg text-sm overflow-auto max-h-80 font-mono border border-gray-700">
+                                            {formatJsonData(event.data)}
+                                          </pre>
+                                        </CardContent>
+                                      </CollapsibleContent>
+                                    </Collapsible>
+                                  </Card>
+                                )} */}
 
-                                {/* Company Properties */}
-                                {event.company_info?.properties && (
-                                  <div>
-                                    <h4 className="font-semibold mb-2">Company Properties</h4>
-                                    <pre className="bg-muted p-4 rounded-lg text-xs overflow-auto max-h-96">
-                                      {JSON.stringify(event.company_info.properties, null, 2)}
-                                    </pre>
-                                  </div>
-                                )}
                               </div>
                             </DialogContent>
                           </Dialog>

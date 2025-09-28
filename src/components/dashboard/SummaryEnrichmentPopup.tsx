@@ -309,10 +309,10 @@ export function SummaryEnrichmentPopup({
                           Company Overview
                         </h3>
                         <div className="grid grid-cols-1 gap-3">
-                          <div className="flex justify-between">
+                          {/* <div className="flex justify-between">
                             <span className="text-sm text-muted-foreground">Business ID:</span>
                             <span className="text-sm font-mono">{account.id}</span>
-                          </div>
+                          </div> */}
                           <div className="flex justify-between">
                             <span className="text-sm text-muted-foreground">Industry:</span>
                             <span className="text-sm">{account.industry}</span>

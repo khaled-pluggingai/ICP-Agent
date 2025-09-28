@@ -1,73 +1,237 @@
-# Welcome to your Lovable project
+# ICP Agent - AI-Powered Customer Profiling Platform
 
-## Project info
+![ICP Agent](public/images/logo.png)
 
-**URL**: https://lovable.dev/projects/2871aba0-d72e-4562-9951-684e74987a75
+**ICP Agent** is an intelligent customer profiling and campaign management platform that helps businesses identify, analyze, and engage with their ideal customer profiles (ICPs) using AI-powered research and automation.
 
-## How can I edit this code?
+## 🚀 Features
 
-There are several ways of editing your application.
+### Core Functionality
+- **AI-Powered ICP Research**: Intelligent chat interface for discovering companies and prospects based on specific criteria
+- **Qualified Account Management**: Track and manage qualified accounts with detailed company information
+- **Decision Maker Identification**: Find and analyze key decision makers within target organizations
+- **Pipeline Insights**: Comprehensive analytics and insights into your sales pipeline
+- **Campaign Management**: Create and manage targeted marketing campaigns
+- **Automation Scheduler**: Schedule and automate outreach activities
+- **Live Monitoring**: Real-time monitoring of campaign performance and activities
 
-**Use Lovable**
+### Dashboard Sections
+- **Analytics Overview**: KPI cards and performance metrics
+- **Qualified Accounts**: Company database with enrichment data
+- **Segments**: Customer segmentation and analysis
+- **Decision Makers**: Contact and stakeholder management
+- **Company Events**: Track company activities and triggers
+- **Pipeline Insights**: Sales funnel analytics
+- **ICP Trainer**: AI-powered ICP refinement and training
+- **Automation Scheduler**: Campaign automation tools
+- **Live Monitor**: Real-time activity tracking
+- **Integrations**: Third-party service connections
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/2871aba0-d72e-4562-9951-684e74987a75) and start prompting.
+## 🛠️ Tech Stack
 
-Changes made via Lovable will be committed automatically to this repo.
+### Frontend
+- **React 18** with TypeScript
+- **Vite** for build tooling and development server
+- **Tailwind CSS** for styling
+- **Framer Motion** for animations
+- **Radix UI** components with shadcn/ui
+- **React Router** for navigation
+- **React Query** for data fetching and caching
+- **React Hook Form** with Zod validation
 
-**Use your preferred IDE**
+### Backend & Database
+- **Supabase** for backend services and PostgreSQL database
+- **Vector embeddings** for AI-powered search
+- **Real-time subscriptions** for live data updates
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Integrations
+- **Exa** for company and prospect data
+- **Explorium** for event tracking
+- **Instantly** for email campaign management
+- **LinkedIn Ads** data integration
+- **Product Hunt** integration
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 📋 Prerequisites
 
-Follow these steps:
+- **Node.js** 18+ 
+- **npm** or **yarn** package manager
+- **Supabase** account and project
+- **Git** for version control
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🚀 Installation
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/icp-agent-60-main.git
+   cd icp-agent-60-main
+   ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+3. **Environment Setup**
+   
+   Create a `.env.local` file in the root directory:
+   ```env
+   VITE_SUPABASE_URL=your_supabase_project_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   VITE_APP_NAME=ICP-Agent
+   VITE_APP_DESCRIPTION=AI-Powered Customer Profiling Platform
+   ```
+
+4. **Start development server**
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   ```
+
+   The application will be available at `http://localhost:8080`
+
+## 🏗️ Build & Deployment
+
+### Local Build
+```bash
+npm run build
+# or
+yarn build
 ```
 
-**Edit a file directly in GitHub**
+### Production Build
+```bash
+npm run build:dev
+# or
+yarn build:dev
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Vercel Deployment
 
-**Use GitHub Codespaces**
+The project is configured for easy deployment on Vercel:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. **Connect your GitHub repository** to Vercel
+2. **Set environment variables** in Vercel dashboard:
+   ```
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your_anon_key
+   ```
+3. **Deploy** - Vercel will automatically build and deploy
 
-## What technologies are used for this project?
+See [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md) for detailed deployment instructions.
 
-This project is built with:
+## 📁 Project Structure
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+```
+src/
+├── api/                    # API configuration and proxy
+├── components/             # React components
+│   ├── dashboard/         # Dashboard-specific components
+│   └── ui/               # Reusable UI components
+├── hooks/                 # Custom React hooks
+├── integrations/          # Third-party integrations
+│   └── supabase/         # Supabase client and types
+├── lib/                   # Utility functions and mocks
+├── pages/                 # Page components and routing
+├── utils/                 # Helper utilities
+└── main.tsx              # Application entry point
+```
 
-## How can I deploy this project?
+## 🔧 Configuration
 
-Simply open [Lovable](https://lovable.dev/projects/2871aba0-d72e-4562-9951-684e74987a75) and click on Share -> Publish.
+### Supabase Setup
+1. Create a new Supabase project
+2. Set up the required database tables (see database schema in `src/integrations/supabase/types.ts`)
+3. Configure Row Level Security (RLS) policies
+4. Set up vector extensions for AI search functionality
 
-## Can I connect a custom domain to my Lovable project?
+### Database Schema
+The application uses several key tables:
+- `decision_maker` - Contact and stakeholder data
+- `exa_companies` - Company information from Exa API
+- `prospects` - Prospect and lead data
+- `icp_data` - ICP configuration and criteria
+- `instantly_*` - Email campaign data
+- `explorium_events` - Event tracking data
 
-Yes, you can!
+## 🎯 Usage
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Getting Started
+1. **Access the Dashboard**: Navigate to `/dashboard` after starting the application
+2. **Configure ICP**: Use the ICP Trainer to define your ideal customer profile
+3. **Search Companies**: Use the AI chat interface to find companies matching your criteria
+4. **Manage Accounts**: Add qualified accounts to your database
+5. **Track Decision Makers**: Identify and track key contacts
+6. **Monitor Performance**: Use analytics to track campaign effectiveness
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+### Example Search Query
+```
+"I want to find Canadian software development companies for AI marketing with revenue 10k+ and size of 15+ employees"
+```
+
+Required fields for searches:
+- Country
+- Industry/Field
+- Revenue range
+- Company size
+
+## 🔌 API Integrations
+
+### Exa API
+- Company and prospect data enrichment
+- Real-time company information
+- LinkedIn profile data
+
+### Explorium
+- Event tracking and monitoring
+- Company activity insights
+- Intent signals
+
+### Instantly
+- Email campaign management
+- Lead tracking and scoring
+- Automation workflows
+
+## 🛡️ Security
+
+- **Environment Variables**: Sensitive data stored in environment variables
+- **Supabase RLS**: Row-level security for data access
+- **HTTPS**: Secure connections in production
+- **Content Security**: Headers configured for security
+
+## 📊 Performance
+
+- **Static Asset Caching**: 1-year cache for static assets
+- **CDN Distribution**: Global content delivery
+- **Gzip Compression**: Automatic compression
+- **Code Splitting**: Optimized bundle sizes
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+For support and questions:
+- Create an issue in the GitHub repository
+- Check the [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md) for deployment issues
+- Review the Supabase documentation for database setup
+
+## 🔄 Version History
+
+- **v1.0.0** - Initial release with core ICP functionality
+- **v0.0.0** - Development version (current)
+
+---
+
+**Built with ❤️ using React, TypeScript, and Supabase**
